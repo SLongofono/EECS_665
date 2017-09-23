@@ -1,0 +1,25 @@
+HTML to LaTeX Conversion with Lex
+
+lex files (.l) - 3 sections delimited by %%, include your includes at the top
+	definitions 
+	R.E rules and associate actions
+		ex. "<h1>"[^<]*"</h1> {printf("Matched a header tag!");}
+	subroutines (for example,a main function to print stuff)
+
+	%x denotes states - we can enter states on certain matches, and write
+	matches that only are valid in certain states.  x is for exclusive
+	states, meaning global matches no longer apply
+
+	Denote states by <statename> before the rule.  More than one can be
+	included <state1, state2> rule {code action}
+
+	REJECT lets us outright reject certain patterns
+
+yytext is a built-in variable that points to the first charater matched, up to
+the last character matched followed by a null terminator.
+
+
+
+
+
+
