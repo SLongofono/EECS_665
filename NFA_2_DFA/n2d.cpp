@@ -93,13 +93,14 @@ int is_member(std::vector<int> * v, int n){
 
 
 /*
- * @brief 	Retrieve a vector of strings representing the States reachable
+ * @brief 	Retrieve a vector of ints representing the States reachable
  * 		on the given input symbol for the given State
  * @param s	A pointer to the State struct representing the State at hand
  * @param c	A char reprenting an input symbol from the alphabet
  * @return	A vector of ints representing the states reachable from s on c
  */
 std::vector<int>* get_moves(State *s, char c){
+	//TODO Cleanup memory
 	std::vector<int> * v = new std::vector<int>;
 	// For each member in the state's moves, if the input symbol matches,
 	// and it is not already in v, add its state value to v as an integer
@@ -115,6 +116,54 @@ std::vector<int>* get_moves(State *s, char c){
 			}
 		}
 	}
+	return v;
+}
+
+
+/*
+ * @brief	Finds the position of a state with name name in the given
+ * 		vector of states.
+ * @param v	A pointer to a std::vector<State> with all known states
+ * @param name	An integer representing the name of a state to check for
+ * @return	An integer representing the position of the state with
+ * 		name name in the vector, or -1 if no such state exists.
+ * 		Note that the latter is an error.
+ */
+int get_position(std::vector<State> v, int name){
+	int numstates = v->size();
+	for(int i = 0; i<numstates; ++i){
+		if( (v->at(i))->name == name){
+			return i;	
+		}
+	}
+	return -1;
+}
+
+
+/*
+ * @brief	Retrieve a vector of ints representing the States reachable
+ * 		from a list of states on NULL input (or epsilon, or lambda,
+ * 		or whatever else you want to call it)
+ * @param s	A pointer to all the possible states at hand
+ * @param moves A pointer to a vector of ints representing states to check
+ * @return	A pointer to an std::vector<int> containing all the states
+ * 		reachable via NULL input from the given list of states in
+ * 		moves.  Note that at minimum, this will be the vector moves.
+ */
+std::vector<int>* epsilon_closure(State* s, std::vector<int>* moves){
+	//TODO Cleanup memory
+	std::vector<int>* v = new std::vector<int>;
+
+	/* For each of the states given in moves:
+	* 	Find the state in the list of states s
+	* 		For each move in the current state
+	* 			If the move has epsilon, add the resultant
+	* 			state to the output vector.  When adding, use
+	* 			set rules.
+	*/
+
+	int numstates = s->size();
+
 	return v;
 }
 
