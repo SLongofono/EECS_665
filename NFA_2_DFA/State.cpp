@@ -21,10 +21,6 @@ State::~State(){
 	}
 }
 
-int State::get_name(){
-	return m_name;	
-}
-
 void State::add_move(char symbol, int state){
 	move *newmove = new move;
 	newmove->symbol = symbol;
