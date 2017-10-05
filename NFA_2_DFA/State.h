@@ -18,14 +18,10 @@ class State{
 		State();	
 		~State();	
 		State(int name);
-		
-		int get_name();
+		std::vector<move *> m_moves;
+		int m_name;		
 		void add_move(char symbol, int state);
 		void print_moves();
-
-	private:
-		int m_name;		
-		std::vector<move *> m_moves;
 };
 
 #endif
