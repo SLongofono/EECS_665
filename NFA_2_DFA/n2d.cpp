@@ -73,6 +73,50 @@ std::vector<int> split_int(const char *str)
 }
 
 
+/*
+ * @brief	Helper function to determine if an integer is a member of a
+ * 		vector<int>
+ * @param v	A pointer to an std::vector<int> to check for membership
+ * @param n	An integer to find in v
+ * @return	Returns 1 if the integer is a member of the vector, or 0
+ * 		otherwise
+ */
+int is_member(std::vector<int> * v, int n){
+	int size = v->size();
+	for(int i = 0; i<size; ++i){
+		if(n == v->at(i)){
+			return 1;	
+		}
+	}
+	return 0;
+}
+
+
+/*
+ * @brief 	Retrieve a vector of strings representing the States reachable
+ * 		on the given input symbol for the given State
+ * @param s	A pointer to the State struct representing the State at hand
+ * @param c	A char reprenting an input symbol from the alphabet
+ * @return	A vector of ints representing the states reachable from s on c
+ */
+std::vector<int>* get_moves(State *s, char c){
+	std::vector<int> * v = new std::vector<int>;
+	// For each member in the state's moves, if the input symbol matches,
+	// and it is not already in v, add its state value to v as an integer
+	int size = s->m_moves.size();
+	char* temp;
+	for(int i = 0; i< size; ++i){
+		temp = &(s->m_moves.at(i)->symbol);
+		if (c == *temp){
+			std::cout << "Matched the input symbol..." << std::endl;
+			if( !(is_member(v, s->m_moves.at(i)->state)) ){
+				std::cout << "New state encountered, adding to result..." << std::endl;
+				v->push_back(s->m_moves.at(i)->state);
+			}
+		}
+	}
+	return v;
+}
 
 int main(int argc, char** argv){
 
@@ -147,7 +191,7 @@ int main(int argc, char** argv){
 			// First element is this state's name
 			State *newState = new State(std::stol(pieces.at(0)));
 
-			std::cout << std::endl << "Creating state " << newState->get_name() <<std::endl;
+			std::cout << std::endl << "Creating state " << newState->m_name <<std::endl;
 
 			assert(sigma.size() == pieces.size() - 1);
 
@@ -189,12 +233,33 @@ int main(int argc, char** argv){
 		std::cout << e.what() << std::endl;
 	}
 
+	std::cout << "Finished parsing input.  The input states:" << std::endl;
+
 	int temp = states->size();
 	State* s;
 	for(int i = 0; i<temp; ++i){
 		s = states->at(i);
+		std::cout << "State " << s->m_name << ":" << std::endl;
+		s->print_moves();
+	}
+
+	s = states->at(1);
+	std::cout << "Getting moves for 2nd state on input a..." << std::endl;
+	std::vector<int> * damoves = get_moves(s, 'a');
+	temp = damoves->size();
+	for(int i = 0; i<temp; ++i){
+		std::cout << damoves->at(i) << std::endl;
+	}
+
+	std::cout << "Cleaning up..." << std::endl;
+	
+	temp = states->size();
+
+	for(int i = 0; i<temp; ++i){
+		s = states->at(i);
 		delete s;
 	}
+
 
 	delete states;
 
