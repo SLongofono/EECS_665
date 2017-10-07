@@ -6,23 +6,7 @@
  * @author      Stephen Longofono
  * @created     September 2017
  * @notes       This program is ill-equipped to handle malformed input.
- *              The exact input must be of the following form:
- *
- *              Initial State: {1}
- *              Final States: {11}
- *              Total States: 11
- *              State   a       b       E
- *              1       {}      {}      {2,5}
- *              2       {3}     {}      {}
- *              3       {}      {4}     {}
- *              4       {}      {}      {8}
- *              5       {}      {6}     {}
- *              6       {7}     {}      {}
- *              7       {}      {}      {8}
- *              8       {}      {}      {9,11}
- *              9       {10}    {}      {}
- *              10      {}      {}      {9,11}
- *              11      {}      {}      {}
+ *              See the example input for the correct form.
  *
  */
 
@@ -30,66 +14,10 @@
 #include <vector>
 #include <stdlib.h>
 #include <string>
-#include "State.h"
 #include <cassert>
 #include <stdexcept>
-
-// Credit to Adam Pierce, string tokenizer for C++ without resorting to Boost
-// Modified to handle tabs and spaces alike
-// Retrieved from https://stackoverflow.com/questions/53849/how-do-i-tokenize-a-string-in-c
-// Sept. 29, 2017
-std::vector<std::string> split_str(const char *str)
-{
-    std::vector<std::string> result;
-
-    do
-    {
-        const char *begin = str;
-
-        while(*str != ' ' && *str != '\t' && *str)
-            str++;
-
-        result.push_back(std::string(begin, str));
-    } while (0 != *str++);
-
-    return result;
-}
-
-std::vector<int> split_int(const char *str)
-{
-    std::vector<int> result;
-
-    do
-    {
-        const char *begin = str;
-
-        while(*str != ' ' && *str != '\t' && *str != ',' && *str)
-            str++;
-
-        result.push_back(std::stoi(std::string(begin, str)));
-    } while (0 != *str++);
-
-    return result;
-}
-
-
-/*
- * @brief       Helper function to determine if an integer is a member of a
- *              vector<int>
- * @param v     A pointer to an std::vector<int> to check for membership
- * @param n     An integer to find in v
- * @return      Returns 1 if the integer is a member of the vector, or 0
- *              otherwise
- */
-int is_member(std::vector<int> * v, int n){
-        int size = v->size();
-        for(int i = 0; i<size; ++i){
-                if(n == v->at(i)){
-                        return 1;
-                }
-        }
-        return 0;
-}
+#include "State.h"
+#include "helpers.h"
 
 
 /*
@@ -119,38 +47,6 @@ std::vector<int>* get_moves(State *s, char c){
         return v;
 }
 
-
-/*
- * @brief       Finds the position of a state with name name in the given
- *              vector of states.
- * @param v     A pointer to a std::vector<State> with all known states
- * @param name  An integer representing the name of a state to check for
- * @return      An integer representing the position of the state with
- *              name name in the vector, or -1 if no such state exists.
- *              Note that the latter is an error.
- */
-int get_position(std::vector<State *> *v, int name){
-        int numstates = v->size();
-        for(int i = 0; i<numstates; ++i){
-                if( v->at(i)->m_name == name){
-                        return i;
-                }
-        }
-        return -1;
-}
-
-
-/*
- * @brief       Determines if two int vectors are equivalent sets
- * @param a     A pointer to a std::vector of ints representing a set of
- *              states
- * @param b     A pointer to a std::vector of ints representing a set of
- *              states
- * @return      Returns 1 if the sets are equivalent, or 0 otherwise
- */
-int set_equivalent(std::vector<int> *a, std::vector<int> *b){
-        return 0;
-}
 
 /*
  * @brief       Retrieve a vector of ints representing the States reachable
@@ -215,6 +111,10 @@ int main(int argc, char** argv){
         testState.add_move('a', 100);
         testState.print_moves();
 
+        /**********************************************************************
+         * Parsing Input
+         *********************************************************************/
+
         int numStates;                          // How many total states
         int initialState;                       // Where to begin
         std::vector<std::string> finalStates;   // Any of these states is accepted
@@ -258,7 +158,9 @@ int main(int argc, char** argv){
         std::cout << "}" << std::endl;
 
 
-        // Assemble state structs
+        /**********************************************************************
+         * Assemble Input States
+         *********************************************************************/
 
         // Input states vector
         std::vector<State *> *states = new std::vector<State *>;
@@ -346,6 +248,42 @@ int main(int argc, char** argv){
         for(int i =0; i<temp; ++i){
                 std::cout << daclosure->at(i) << std::endl;
         }
+
+
+        /**********************************************************************
+         * The Algorithm
+         *********************************************************************/
+
+        /*
+         * The start state is added to set of DFA states, unmarked, with no
+         * transitions
+         *
+         * For each unmarked state in the set of dfa states...
+         *      For each input symbol on a state
+         *              Assemble the moves on that input.
+         *              Determine the epsilon closure of the resultant list
+         *              If this list doesn't match a state in the DFA states,
+         *                      add it to the DFA state
+         *
+         * Repeat until DFA states are marked.
+         *
+         * Now, look at each of the DFA states, and if it contains one of the
+         * original final states, then it is final.
+         *
+         * Print the DFA states.
+         */
+
+        std::vector<State *> * DFA_states = new std::vector<State *>;
+        State *start = new State(initialState);
+        start->m_marked = 1;
+        DFA_states->push_back(start);
+
+
+
+        /**********************************************************************
+         * Housekeeping
+         *********************************************************************/
+
 
         std::cout << "Cleaning up..." << std::endl;
 
