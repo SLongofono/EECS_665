@@ -36,7 +36,7 @@
  * @notes		Will always be non-empty, since every state's epsilon-
  * 			closure includes itself.
  */
-std::set<int>* epsilon_closure(int s, int sigmaSize, std::vector<int> *** NFA){
+std::set<int>* epsilon_closure(int s, int sigmaSize, std::vector<int> ***NFA){
 	std::set<int> *ret = new std::set<int>;
 	
 	ret->insert(s);
@@ -55,13 +55,11 @@ std::set<int>* epsilon_closure(int s, int sigmaSize, std::vector<int> *** NFA){
  * 			containing all the states reachable on the symbol input
  * @param s		An integer representing the state
  * @param c		An integer representing the input symbol
- * @param numStates	The number of states in the NFA table
- * @param sigmaSize	The length of the alphabet
  * @param NFA		A 2D array of std::vector<int> representing the NFA table
  * @return		A pointer to a std::set<int> representing all the states
  *  			reachable from the input state on the input symbol.
  */
-std::set<int>* moves(int s, int c, int numStates, int sigmaSize, std::set<int> ***NFA){
+std::set<int>* get_moves(int s, int c, std::vector<int> ***NFA){
 	
 	std::set<int> *ret = nullptr;
 	
@@ -255,9 +253,113 @@ int main(int argc, char **argv){
 		print_int_set(curr);
 		std::cout << std::endl;
 		
-		
+		std::set<int>::iterator curState;
+
+		// For each input symbol, except E
+		for(int i = 0; i<sigmaSize - 1; ++i){
+
+			std::set<int>* moves = new std::set<int>;
+			
+			// Generate the moves on the current set from the
+			// current input
+
+			for(curState = curr->begin(); curState != curr->end(); curState++){
+				std::set<int> *temp = get_moves(*(curState), i, NFA_table);
+				
+				// If moves exist, add them the the transition
+				// on this symbol for the DFA state at hand
+				if(temp != nullptr){
+					moves->insert(temp->begin(), temp->end());
+				}
+			
+			} // end for(curState = curr->begin()...
+			
+
+			// For clarity's sake, use the same name as in the
+			// algorithm
+			std::set<int> * U = new std::set<int>;
+				
+			// if we found moves...
+			if(moves->size() > 0){
+				std::cout << "Found moves on input " << c_unmap(i) << ":";
+				print_int_set(moves);
+				std::cout << std::endl;
+
+				// Generate the epsilon closure of the
+				// result
+				std::set<int>::iterator iter;
+
+				for(iter = moves->begin(); iter != moves->end(); iter++){
+					std::set<int>* eps = epsilon_closure( (*iter), sigmaSize, NFA_table);
+					
+					std::cout << "Found moves: ";
+					print_int_set(eps);
+
+					U->insert(eps->begin(), eps->end());
+				}
+				
+				std::cout << "Searching for ";
+				print_int_set(U);
+				std::cout << " in known DFA states..." << std::endl;
+
+				// If the epsilon closure is not in
+				// the DFA table...
+				std::map< std::set<int>*, std::set<int>** >::iterator thisone;
+				thisone = DFA_table.find(U);
+				if(thisone == DFA_table.end()){
+					// Create a new entry in the
+					// DFA table
+					std::cout << "Creating new DFA state: ";
+					print_int_set(U);
+					std::cout << std::endl;
+
+					// Create and initialize an array represnting the sigma mapping
+					std::set<int>** sigma_indirection = new std::set<int> *[sigmaSize];
+					for(int i = 0; i<sigmaSize; ++i){
+						sigma_indirection[i] = nullptr;	
+					}
+
+					DFA_table.insert(
+						std::pair< std::set<int>*, std::set<int>** >(
+							U, sigma_indirection
+						)
+					);
+
+					// Create a new entry for
+					// marking
+					DFA_marked.insert(
+						std::pair< std::set<int>*, int >(
+							U, 0
+						)
+					);
+				} // end if(thisone != DFA_table.end())
+				else{
+					std::cout << "This DFA state already exists..." << std::endl;
+				}
+
+				// In both cases, add a transition on
+				// the current letter to the epsilon
+				// closure set
+				DFA_table[curr][i] = U;
+
+			}
+			else{
+				std::cout << "\t\tEmpty set" << std::endl;
+			}
+
+		} // end for(int i = 0; i<sigmaSize; ++i)
+
 		// Move on to another DFA state
 		curr = find_unmarked(DFA_marked);
+
+	} // end while(curr != nullptr)
+
+	std::cout << "Found " << DFA_marked.size() << " DFA states: " << std::endl;
+	std::map< std::set<int>*, int >::iterator iter;
+	for(iter = DFA_marked.begin(); iter != DFA_marked.end(); iter++){
+		std::cout << "\t";
+		print_int_set(iter->first);
+		std::cout <<std::endl;
 	}
 	
 
