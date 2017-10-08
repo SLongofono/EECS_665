@@ -5,6 +5,7 @@
 #include <iostream>
 #include <cassert>
 #include <vector>
+#include <set>
 
 // Map lowercase letters to [0, 25] and 'E' to 26
 int c_map(char c){
@@ -23,6 +24,29 @@ char c_unmap(int i){
 		return 'E';	
 	}
 	return (i+97);
+}
+
+
+// Traverse the DFA marked mapping and find the first unmarked set.  Returns
+// nullptr if no such set exists.
+std::set<int>* find_unmarked(std::map< std::set<int>*, int > DFA_marked){
+	std::map<std::set<int>*, int>::iterator i;
+	for(i = DFA_marked.begin(); i != DFA_marked.end(); ++i){
+		if(0 == i->second){
+			return i->first;
+		}	
+	}
+	return nullptr;
+}
+
+// Prints an int set on a single line, no return
+void print_int_set(std::set<int> *s){
+	std::set<int>::iterator i;
+	std::cout << "{ ";
+	for(i = s->begin(); i != s->end(); i++){
+		std::cout << *(i) << " ";	
+	}
+	std::cout << "}";
 }
 
 
@@ -75,5 +99,20 @@ std::vector<int> *split_int(const char *str)
     return result;
 }
 
+
+/*
+ * @brief	Converts a vector into a set
+ * @param v	A pointer to a std::vector<int> to be converted
+ * @return	A pointer to a std::set<int> composed of all unique elements
+ * 		in input std::vector<int> v
+ * @notes	I am amazed that this even works, given how clunky C++ is.
+ * 		Kudos to the developers that decided the stardard types should
+ * 		work so well together.
+ */
+std::set<int>* vec_to_set(std::vector<int>* v){
+	std::set<int>* ret = new std::set<int>;
+	ret->insert(v->begin(), v->end());
+	return ret;
+}
 
 #endif

@@ -30,13 +30,13 @@
  * 			containing the states reachable on epsilon input
  * @param s		An integer representing the state
  * @param sigmaSize	The length of the alphabet
- * @param NFA		A 2D array of std::set<int> representing the NFA table
+ * @param NFA		A 2D array of std::vector<int> representing the NFA table
  * @return		A pointer to a std::set<int> containing all the states
  * 			reachable from the input state on epsilon input
  * @notes		Will always be non-empty, since every state's epsilon-
  * 			closure includes itself.
  */
-std::set<int>* epsilon_closure(int s, int sigmaSize, std::set<int> ***NFA){
+std::set<int>* epsilon_closure(int s, int sigmaSize, std::vector<int> *** NFA){
 	std::set<int> *ret = new std::set<int>;
 	
 	ret->insert(s);
@@ -57,7 +57,7 @@ std::set<int>* epsilon_closure(int s, int sigmaSize, std::set<int> ***NFA){
  * @param c		An integer representing the input symbol
  * @param numStates	The number of states in the NFA table
  * @param sigmaSize	The length of the alphabet
- * @param NFA		A 2D array of std::set<int> representing the NFA table
+ * @param NFA		A 2D array of std::vector<int> representing the NFA table
  * @return		A pointer to a std::set<int> representing all the states
  *  			reachable from the input state on the input symbol.
  */
@@ -119,18 +119,18 @@ int main(int argc, char **argv){
 	// Handle input "State	a	b	..	E"
 	std::getline(std::cin, buff);
 	
-	std::cout << "Maximum alphabet : " << std::endl;
-	for(int i = 0; i<sigmaSize; ++i){
-		std::cout << i << " maps to " << c_unmap(i) << std::endl;
-	}
-
 
 	/**********************************************************************
 	 * Assemble Input States
 	 *********************************************************************/
-	
 
-	std::vector<int>* NFA_table[numStates][sigmaSize];
+	// pointers are fun
+	std::vector<int> ***NFA_table = new std::vector<int>**[numStates];
+
+	for(int i = 0; i<numStates; ++i){
+		std::vector<int>** sigma_indirection = new std::vector<int>*[sigmaSize];
+		NFA_table[i] = sigma_indirection;
+	}
 
 	// start blank
 	for(int i = 0; i < numStates; ++i){
@@ -142,15 +142,12 @@ int main(int argc, char **argv){
 	// Handle input "#	{#,#..}	{#,#...} ..."
 	std::getline(std::cin, buff);
 	while(buff.size() > 1){
-		std::cout << "Read in state: " << buff;
 
 		// Tokenize
 		std::vector<std::string> *pieces= split_str(buff.data());
 	
 		// First element is this state's name
 		int name = std::stol(pieces->at(0));
-
-		std::cout << std::endl << "Creating state: " << name <<std::endl;
 
 		len = pieces->size();
 
@@ -165,10 +162,6 @@ int main(int argc, char **argv){
 
 				std::vector<int> *transitions = split_int(temp.data());
 				
-				std::cout << "Parsed set: ";
-				print_int_vec(transitions);
-				std::cout << std::endl;
-
 				// If there is less than a full
 				// alphabet, the last will not
 				int cval;
@@ -185,9 +178,6 @@ int main(int argc, char **argv){
 				NFA_table[name][cval] = transitions;
 
 			}
-			else{
-				std::cout << "Empty set, moving on..." << std::endl;	
-			}
 		}
 
 		delete pieces;
@@ -196,7 +186,6 @@ int main(int argc, char **argv){
 		
 	}// End while(buff.size() > 1)
 
-	std::cout << "Input table complete" << std::endl;
 
 	for(int i = 0; i< numStates; ++i){
 		for(int j = 0; j<sigmaSize; ++j){
@@ -217,12 +206,59 @@ int main(int argc, char **argv){
 	
 	// The DFA table maps some input set to an array of output sets,
 	// indexed by the input alphabet.
-	std::map< std::set<int>, std::vector< std::set<int> > >DFA_table;
+	std::map<
+		std::set<int>*, std::set<int>**
+	>DFA_table;
+
+	// We need to keep track of visited (marked) DFA states
+	std::map<
+		std::set<int>*,
+		int
+	>DFA_marked;
 
 	// Compute epsilon closure of the initial state.  This is the first
 	// DFA state.
+	std::set<int> * init = epsilon_closure(initialState, sigmaSize, NFA_table);
+
+	std::cout << "Epsilon closure, initial state: " << std::endl;
+	print_int_set(init);
+	std::cout << std::endl;
 	
-	
+	// Create and initialize an array represnting the sigma mapping
+	std::set<int>** sigma_indirection = new std::set<int> *[sigmaSize];
+	for(int i = 0; i<sigmaSize; ++i){
+		sigma_indirection[i] = nullptr;	
+	}
+
+	DFA_table.insert(
+		std::pair< std::set<int>*, std::set<int>** >(
+			init, sigma_indirection
+		)
+	);
+
+	DFA_marked.insert(
+		std::pair< std::set<int>*, int>(
+			init, 0
+		)
+	);
+
+	std::cout << "Created DFA table entry for initial state..." << std::endl;
+
+	std::set<int>* curr = find_unmarked(DFA_marked);
+	// While there are DFA states left to mark
+	while( curr != nullptr){
+		
+		// Mark this DFA state
+		DFA_marked[curr] = 1;
+		
+		std::cout << "Marked state: ";
+		print_int_set(curr);
+		std::cout << std::endl;
+		
+		
+		// Move on to another DFA state
+		curr = find_unmarked(DFA_marked);
+	}
 	
 
 
