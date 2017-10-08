@@ -214,14 +214,19 @@ int main(int argc, char **argv){
 		int
 	>DFA_marked;
 
+	// Finally, we need to give our output states a simple name because
+	// that's what the rubric calls for
+	std::map<
+		std::set<int>*,
+		int
+	>DFA_familiar_names;
+
+	int familiarCount = 1;
+
 	// Compute epsilon closure of the initial state.  This is the first
 	// DFA state.
 	std::set<int> * init = epsilon_closure(initialState, sigmaSize, NFA_table);
 
-	std::cout << "Epsilon closure, initial state: " << std::endl;
-	print_int_set(init);
-	std::cout << std::endl;
-	
 	// Create and initialize an array represnting the sigma mapping
 	std::set<int>** sigma_indirection = new std::set<int> *[sigmaSize];
 	for(int i = 0; i<sigmaSize; ++i){
@@ -240,7 +245,18 @@ int main(int argc, char **argv){
 		)
 	);
 
-	std::cout << "Created DFA table entry for initial state..." << std::endl;
+	DFA_familiar_names.insert(
+		std::pair< std::set<int>*, int>(
+			init, familiarCount
+		)
+	
+	);
+
+	familiarCount++;
+	
+	std::cout << "E-closure(IO) = ";
+	print_int_set(init);
+	std::cout << " = " << DFA_familiar_names.find(init)->second << std::endl << std::endl;
 
 	std::set<int>* curr = find_unmarked(DFA_marked);
 	// While there are DFA states left to mark
@@ -249,9 +265,7 @@ int main(int argc, char **argv){
 		// Mark this DFA state
 		DFA_marked[curr] = 1;
 		
-		std::cout << "Marked state: ";
-		print_int_set(curr);
-		std::cout << std::endl;
+		std::cout << std::endl << "Mark " << DFA_familiar_names.find(curr)->second << std::endl;
 		
 		std::set<int>::iterator curState;
 
@@ -281,7 +295,8 @@ int main(int argc, char **argv){
 				
 			// if we found moves...
 			if(moves->size() > 0){
-				std::cout << "Found moves on input " << c_unmap(i) << ":";
+				print_int_set(curr);
+				std::cout << " --" << c_unmap(i) << "--> ";
 				print_int_set(moves);
 				std::cout << std::endl;
 
@@ -292,33 +307,23 @@ int main(int argc, char **argv){
 				for(iter = moves->begin(); iter != moves->end(); iter++){
 					std::set<int>* eps = epsilon_closure( (*iter), sigmaSize, NFA_table);
 					
-					std::cout << "Found moves: ";
-					print_int_set(eps);
-
 					U->insert(eps->begin(), eps->end());
 				}
-				
-				std::cout << "Searching for ";
-				print_int_set(U);
-				std::cout << " in known DFA states..." << std::endl;
 
 				// If the epsilon closure is not in
 				// the DFA table...
 				std::map< std::set<int>*, std::set<int>** >::iterator thisone;
 				thisone = DFA_table.find(U);
 				if(thisone == DFA_table.end()){
-					// Create a new entry in the
-					// DFA table
-					std::cout << "Creating new DFA state: ";
-					print_int_set(U);
-					std::cout << std::endl;
-
+					
 					// Create and initialize an array represnting the sigma mapping
 					std::set<int>** sigma_indirection = new std::set<int> *[sigmaSize];
 					for(int i = 0; i<sigmaSize; ++i){
 						sigma_indirection[i] = nullptr;	
 					}
 
+					// Create a new entry in the
+					// DFA table
 					DFA_table.insert(
 						std::pair< std::set<int>*, std::set<int>** >(
 							U, sigma_indirection
@@ -332,19 +337,35 @@ int main(int argc, char **argv){
 							U, 0
 						)
 					);
-				} // end if(thisone != DFA_table.end())
-				else{
-					std::cout << "This DFA state already exists..." << std::endl;
-				}
+					
+					// Update our familiar names with the
+					// new state
+					DFA_familiar_names.insert(
+						std::pair< std::set<int>*, int>(
+							U, familiarCount
+						)
+	
+					);
 
-				// In both cases, add a transition on
+					familiarCount++;
+
+				} // end if(thisone != DFA_table.end())
+
+				// Add a transition on
 				// the current letter to the epsilon
 				// closure set
 				DFA_table[curr][i] = U;
 
+				// Feedback
+				std::cout << "E-closure";
+				print_int_set(moves);
+				std::cout << " = ";
+				print_int_set(U);
+				std::cout << " = " << DFA_familiar_names.find(U)->second << std::endl;
+
 			}
 			else{
-				std::cout << "\t\tEmpty set" << std::endl;
+				//std::cout << "\t\tEmpty set" << std::endl;
 			}
 
 		} // end for(int i = 0; i<sigmaSize; ++i)
@@ -359,7 +380,7 @@ int main(int argc, char **argv){
 	for(iter = DFA_marked.begin(); iter != DFA_marked.end(); iter++){
 		std::cout << "\t";
 		print_int_set(iter->first);
-		std::cout <<std::endl;
+		std::cout << " = " << DFA_familiar_names.find(iter->first)->second  << std::endl;
 	}
 	
 
