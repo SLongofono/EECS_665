@@ -62,12 +62,14 @@ std::set<int>* epsilon_closure(int s, int sigmaSize, std::vector<int> ***NFA){
 std::set<int>* get_moves(int s, int c, std::vector<int> ***NFA){
 	
 	std::set<int> *ret = nullptr;
-	
+
 	// if there are states to be found
 	if(NFA[s][c] != nullptr){
+	//	std::cout << " found states " << std::endl;
 		ret = new std::set<int>;
 		ret->insert( NFA[s][c]->begin(), NFA[s][c]->end() );
 	}
+	
 	return ret;
 }
 
@@ -77,12 +79,15 @@ int main(int argc, char **argv){
 	/**********************************************************************
 	 * Parsing Metadata
 	 *********************************************************************/
-	std::vector<std::string> *finalStates;	// Any of these states is accepted
-	int numStates;				// How many total states
-	int initialState;			// Where to begin
-	int sigmaSize = 27;	 		// To make things simple,
-						// assume lower case alphabet
-						// plus E
+	std::vector<std::string> *strFinalStates;// Any of these states is accepted
+	std::vector<int>	 *finalStates;	 // In integer form
+	int numStates;				 // How many total states
+	int initialState;			 // Where to begin
+	int sigmaSize = 27;	 		 // To make things simple,
+						 // assume lower case alphabet
+						 // plus E
+	int input_len;				 // Keep track of actual input
+						 // for printing at the end
 	std::string buff;
 
 	// Fetch initial state
@@ -90,51 +95,49 @@ int main(int argc, char **argv){
 	std::getline(std::cin, buff);
 	buff.pop_back();
 	initialState = std::stoi(buff.substr(16));
-	std::cout << "Initial state: " << initialState << std::endl;
-	
 
 	// Fetch final states as a vector
 	// Handle input "Final States: {#,#,#,#...}"
 	std::getline(std::cin, buff);
 	buff.pop_back();
-	finalStates = split_str(buff.substr(15).data());
-	int len = finalStates->size();
-	std::cout << "Final states (" << len << "): ";
-	for(int i = 0; i<len; ++i){
-		std::cout << finalStates->at(i) << " ";
+	strFinalStates = split_str(buff.substr(15).data());
+	finalStates = new std::vector<int>;
+	for(size_t i = 0; i<strFinalStates->size(); ++i){
+		finalStates->push_back(std::stoi(strFinalStates->at(i)));	
 	}
-	std::cout << std::endl;
-	
 
 	// Fetch total number of states
 	// Handle input "Total States: #"
 	std::getline(std::cin, buff);
 	numStates = std::stoi(buff.substr(14));
-	std::cout << "Number of states: " << numStates << std::endl;
-	
 
 	// Fetch input alphabet and do nothing with it
 	// Handle input "State	a	b	..	E"
 	std::getline(std::cin, buff);
-	
+	std::vector<std::string>* trash = split_str(buff.data());
+	input_len = trash->size() - 2;
+	delete trash;
 
 	/**********************************************************************
 	 * Assemble Input States
 	 *********************************************************************/
 
-	// pointers are fun
-	std::vector<int> ***NFA_table = new std::vector<int>**[numStates];
+	// NOTE: using numStates + 1 since we are using states indexed from 1
+	// for some insane reason.
+	int arbitrary_introduction_of_unneccesary_complexity = 1;
 
-	for(int i = 0; i<numStates; ++i){
+	std::vector<int> ***NFA_table = new std::vector<int>**[numStates+arbitrary_introduction_of_unneccesary_complexity];
+
+	for(int i = 0; i<numStates+arbitrary_introduction_of_unneccesary_complexity; ++i){
 		std::vector<int>** sigma_indirection = new std::vector<int>*[sigmaSize];
 		NFA_table[i] = sigma_indirection;
 	}
 
 	// start blank
-	for(int i = 0; i < numStates; ++i){
+	for(int i = 0; i < numStates+arbitrary_introduction_of_unneccesary_complexity; ++i){
 		for(int j=0; j<sigmaSize; ++j){
 			NFA_table[i][j] = nullptr;	
-		}	
+		}
 	}
 
 	// Handle input "#	{#,#..}	{#,#...} ..."
@@ -143,11 +146,11 @@ int main(int argc, char **argv){
 
 		// Tokenize
 		std::vector<std::string> *pieces= split_str(buff.data());
-	
+
 		// First element is this state's name
 		int name = std::stol(pieces->at(0));
 
-		len = pieces->size();
+		int len = pieces->size();
 
 		// For each set
 		for(int i = 1; i<len; ++i){
@@ -159,7 +162,7 @@ int main(int argc, char **argv){
 				std::string temp = pieces->at(i).substr(1, pieces->at(i).size()-2);
 
 				std::vector<int> *transitions = split_int(temp.data());
-				
+			
 				// If there is less than a full
 				// alphabet, the last will not
 				int cval;
@@ -184,20 +187,7 @@ int main(int argc, char **argv){
 		
 	}// End while(buff.size() > 1)
 
-
-	for(int i = 0; i< numStates; ++i){
-		for(int j = 0; j<sigmaSize; ++j){
-			
-			if(nullptr != NFA_table[i][j]){
-				std::cout << "State " << i+1 << ":" << std::endl;
-				std::cout << "\t" << "On input " << c_unmap(j) << ": ";
-				print_int_vec(NFA_table[i][j]);
-				std::cout << std::endl;
-			}
-		}
-	}
-
-
+	
 	/**********************************************************************
 	 * Main Algorithm
 	 *********************************************************************/
@@ -256,9 +246,10 @@ int main(int argc, char **argv){
 	
 	std::cout << "E-closure(IO) = ";
 	print_int_set(init);
-	std::cout << " = " << DFA_familiar_names.find(init)->second << std::endl << std::endl;
+	std::cout << " = " << DFA_familiar_names.find(init)->second << std::endl;
 
 	std::set<int>* curr = find_unmarked(DFA_marked);
+
 	// While there are DFA states left to mark
 	while( curr != nullptr){
 		
@@ -278,8 +269,9 @@ int main(int argc, char **argv){
 			// current input
 
 			for(curState = curr->begin(); curState != curr->end(); curState++){
+			
 				std::set<int> *temp = get_moves(*(curState), i, NFA_table);
-				
+			
 				// If moves exist, add them the the transition
 				// on this symbol for the DFA state at hand
 				if(temp != nullptr){
@@ -303,19 +295,40 @@ int main(int argc, char **argv){
 				// Generate the epsilon closure of the
 				// result
 				std::set<int>::iterator iter;
+				std::set<int>* eps;
+
+				size_t setlen = U->size();
 
 				for(iter = moves->begin(); iter != moves->end(); iter++){
-					std::set<int>* eps = epsilon_closure( (*iter), sigmaSize, NFA_table);
+					eps = epsilon_closure( (*iter), sigmaSize, NFA_table);
 					
 					U->insert(eps->begin(), eps->end());
 				}
-
+				// Also need to account for the epsilon
+				// closure of the other states, for as long as
+				// the length is unchanged.
+				while(setlen != U->size()){
+					for(iter = U->begin(); iter != U->end(); iter++){
+						eps = epsilon_closure( (*iter), sigmaSize, NFA_table);
+					}
+					U->insert(eps->begin(), eps->end());
+					setlen = U->size();
+				}
+			
 				// If the epsilon closure is not in
 				// the DFA table...
 				std::map< std::set<int>*, std::set<int>** >::iterator thisone;
-				thisone = DFA_table.find(U);
+
+				for(thisone = DFA_table.begin(); thisone != DFA_table.end(); thisone++){
+					if(set_compare(U, thisone->first )){
+						// Found an equivalent set,
+						// kick out
+						break;
+					}
+				}
 				if(thisone == DFA_table.end()){
-					
+				
+
 					// Create and initialize an array represnting the sigma mapping
 					std::set<int>** sigma_indirection = new std::set<int> *[sigmaSize];
 					for(int i = 0; i<sigmaSize; ++i){
@@ -361,7 +374,7 @@ int main(int argc, char **argv){
 				print_int_set(moves);
 				std::cout << " = ";
 				print_int_set(U);
-				std::cout << " = " << DFA_familiar_names.find(U)->second << std::endl;
+				std::cout << " = " << set_name_match(U, DFA_familiar_names) << std::endl;
 
 			}
 			else{
@@ -375,14 +388,37 @@ int main(int argc, char **argv){
 
 	} // end while(curr != nullptr)
 
-	std::cout << "Found " << DFA_marked.size() << " DFA states: " << std::endl;
-	std::map< std::set<int>*, int >::iterator iter;
-	for(iter = DFA_marked.begin(); iter != DFA_marked.end(); iter++){
-		std::cout << "\t";
-		print_int_set(iter->first);
-		std::cout << " = " << DFA_familiar_names.find(iter->first)->second  << std::endl;
+	// Determine new final states;
+	std::set<int>* fstates = new std::set<int>;
+	std::map< std::set<int>*, int>::iterator it;
+	int len = finalStates->size();
+	for(it = DFA_familiar_names.begin(); it != DFA_familiar_names.end(); ++it){
+		for(int j = 0; j<len; ++j){
+			if(set_member( it->first, finalStates->at(j) )){
+				fstates->insert(it->second);
+			}		
+		}
 	}
-	
+
+
+	/**********************************************************************
+	 * Display Results
+	 *********************************************************************/
+
+	std::cout << std::endl << "Initial state: {" << set_name_match(init, DFA_familiar_names) << "}" << std::endl;
+
+	std::cout << "Final States: ";
+	print_int_set(fstates);
+	std::cout << std::endl;
+
+	std::cout << "State\t";
+	for(int i = 0; i<input_len; ++i){
+		std::cout << c_unmap(i);
+		if(i < input_len){
+			std::cout << "\t";	
+		}
+	}
+	std::cout << std::endl;
 
 
 	/**********************************************************************
@@ -391,7 +427,8 @@ int main(int argc, char **argv){
 	
 	// Clean up finalstates
 	delete finalStates;
-
+	delete strFinalStates;
+	delete fstates;
 
 	// Clean up NFA_table
 	for(int i = 0; i<numStates; ++i){
