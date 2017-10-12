@@ -42,10 +42,16 @@ std::set<int>* find_unmarked(std::map< std::set<int>*, int > DFA_marked){
 
 // Prints an int set on a single line, no return
 void print_int_set(std::set<int> *s){
+	int count = 0;
+	int size = s->size();
 	std::set<int>::iterator i;
-	std::cout << "{ ";
+	std::cout << "{";
 	for(i = s->begin(); i != s->end(); i++){
-		std::cout << *(i) << " ";	
+		std::cout << *(i);
+		if(count < size-1){
+			std::cout <<",";	
+		}
+		count++;
 	}
 	std::cout << "}";
 }
@@ -82,6 +88,17 @@ int set_compare(std::set<int>* a, std::set<int>* b){
 	return 1;
 }
 
+
+// Find the set's familiar name and return it, since the built-in equivalence is buggy
+std::set<int>* set_name_int_match(int s, std::map<std::set<int>*, int> DFA_names){
+	std::map<std::set<int>*, int>::iterator it;
+	for(it = DFA_names.begin(); it != DFA_names.end(); it++){
+		if( s == it->second ){
+			return it->first;
+		}	
+	}
+	return nullptr;
+}
 
 // Find the set's familiar name and return it, since the built-in equivalence is buggy
 int set_name_match(std::set<int>* s, std::map<std::set<int>*, int> DFA_names){

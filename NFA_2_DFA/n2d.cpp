@@ -378,7 +378,8 @@ int main(int argc, char **argv){
 
 			}
 			else{
-				//std::cout << "\t\tEmpty set" << std::endl;
+				delete U;
+				delete moves;
 			}
 
 		} // end for(int i = 0; i<sigmaSize; ++i)
@@ -420,11 +421,43 @@ int main(int argc, char **argv){
 	}
 	std::cout << std::endl;
 
+	len = DFA_familiar_names.size();
+	for(int i = 0; i<len; ++i){
+		std::cout << i+1 << "\t";
+
+		// Find the set associated with the current number
+		std::set<int>* curr = set_name_int_match(i+1, DFA_familiar_names);
+
+		for(int j = 0; j<input_len; ++j){
+			
+			// Find the output transition associated with this
+			// input character and display it.
+			std::set<int>* thisone = DFA_table.at(curr)[j];
+			if(nullptr != thisone){
+
+				std::cout << "{" << set_name_match(thisone, DFA_familiar_names)<< "}";
+			
+			}
+			else{
+				std::cout << "{}";	
+			}
+
+			if(j < input_len-1){
+				std::cout << "\t";	
+			}
+		}
+		std::cout << std::endl;
+
+	}
+
 
 	/**********************************************************************
 	 * Housekeeping
 	 *********************************************************************/
-	
+
+	// Clean up initial state
+	delete init;
+
 	// Clean up finalstates
 	delete finalStates;
 	delete strFinalStates;
@@ -437,8 +470,21 @@ int main(int argc, char **argv){
 		}	
 	}
 
+
 	// Clean up DFA_table
-	// TODO
+	std::map<std::set<int>*, std::set<int>**>::iterator it2;
+	for(it2 = DFA_table.begin(); it2 != DFA_table.end(); ++it2){
+		for(int i = 0; i<sigmaSize; ++i){
+			delete it2->second[i];
+		}
+	}
+	DFA_table.clear();
+
+	// Clean up names and marked tables
+	DFA_familiar_names.clear();
+	DFA_marked.clear();
+
+	
 
 	return 0;
 }
