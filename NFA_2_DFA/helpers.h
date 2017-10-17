@@ -1,3 +1,15 @@
+/* @file 	helpers.h
+ * @brief	Defines helper functions for the NFA to DFA converter program
+ * @author	Stephen Longofono
+ *
+ * @notes	This was prepared for EECs 665, Compilers at the University of
+ * 		Kansas, Fall 2017.
+ *
+ * 		I borrowed a function from stackexchange, see notes above the
+ * 		definition for split_str() for citation.  I did not write this
+ * 		function and I am in no way trying to portray it as my own.
+ */
+
 #ifndef HELP_H
 #define HELP_H
 
@@ -146,6 +158,8 @@ std::vector<std::string> *split_str(const char *str)
 }
 
 
+// Modified version of above which acts on strings of integers and returns a
+// vector of integers instead of strings.  Assumes that stoi() will not fail.
 std::vector<int> *split_int(const char *str)
 {
     std::vector<int> *result = new std::vector<int>;

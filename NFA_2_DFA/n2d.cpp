@@ -6,7 +6,10 @@
  * 		finite-state automata, converts it to an equivalent
  * 		deterministic FSA.
  *
- * @notes	This is my first foray into c++ with standard data types.
+ * @notes	This was prepared for EECS 665, Compilers, at the University
+ * 		of Kansas, Fall 2017
+ *
+ * 		This is my first foray into c++ with standard data types.
  * 		So far, all our programming classes have forced us to roll
  * 		our own data structures. We wrote everything from scratch.
  * 		Why should you care?  It's likely that I've used a few types
@@ -276,6 +279,7 @@ int main(int argc, char **argv){
 				// on this symbol for the DFA state at hand
 				if(temp != nullptr){
 					moves->insert(temp->begin(), temp->end());
+					delete temp;
 				}
 			
 			} // end for(curState = curr->begin()...
@@ -304,6 +308,9 @@ int main(int argc, char **argv){
 					
 					U->insert(eps->begin(), eps->end());
 				}
+
+				delete eps;
+
 				// Also need to account for the epsilon
 				// closure of the other states, for as long as
 				// the length is unchanged.
@@ -314,6 +321,8 @@ int main(int argc, char **argv){
 					U->insert(eps->begin(), eps->end());
 					setlen = U->size();
 				}
+
+				delete eps;
 			
 				// If the epsilon closure is not in
 				// the DFA table...
@@ -327,7 +336,6 @@ int main(int argc, char **argv){
 					}
 				}
 				if(thisone == DFA_table.end()){
-				
 
 					// Create and initialize an array represnting the sigma mapping
 					std::set<int>** sigma_indirection = new std::set<int> *[sigmaSize];
@@ -379,8 +387,8 @@ int main(int argc, char **argv){
 			}
 			else{
 				delete U;
-				delete moves;
 			}
+			delete moves;
 
 		} // end for(int i = 0; i<sigmaSize; ++i)
 
@@ -456,16 +464,25 @@ int main(int argc, char **argv){
 	 *********************************************************************/
 
 	// Clean up initial state
+	init->clear();
 	delete init;
 
 	// Clean up finalstates
+	finalStates->clear();
 	delete finalStates;
+	
+	strFinalStates->clear();
 	delete strFinalStates;
+	
+	fstates->clear();
 	delete fstates;
 
 	// Clean up NFA_table
 	for(int i = 0; i<numStates; ++i){
 		for(int j=0; j<sigmaSize; ++j){
+			if(NFA_table[i][j] != nullptr){
+				NFA_table[i][j]->clear();
+			}
 			delete NFA_table[i][j];
 		}	
 	}
@@ -475,6 +492,9 @@ int main(int argc, char **argv){
 	std::map<std::set<int>*, std::set<int>**>::iterator it2;
 	for(it2 = DFA_table.begin(); it2 != DFA_table.end(); ++it2){
 		for(int i = 0; i<sigmaSize; ++i){
+			if(it2->second[i] != nullptr){
+				it2->second[i]->clear();
+			}
 			delete it2->second[i];
 		}
 	}
@@ -483,8 +503,6 @@ int main(int argc, char **argv){
 	// Clean up names and marked tables
 	DFA_familiar_names.clear();
 	DFA_marked.clear();
-
-	
 
 	return 0;
 }
