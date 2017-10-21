@@ -1,0 +1,53 @@
+Lab assignment - symbol table
+
+Rubric:
+
+The purpose of this laboratory is to build and print out a symbol
+table for the C-like language that the csym compiler framework parses. Much of
+the source code for the project has already been written. To complete the
+project, you will need to modify the following:
+
+	The enterblock, leaveblock, and dump functions in the file sym.c are stubs
+	and must be completed
+
+        The fname, ftail, blockdcl, and btail functions in the file sem_sym.c
+	are stubs and must be completed
+
+	Completing these functions means that you will need to build up the
+	symbol table correctly and print out the symbol table at the correct
+	time. Complete instructions and more details on the support functions
+	will be given at the beginning of the laboratory.
+
+More instructions/Details from lab:
+CSim framework - simplified version of C with a Yacc grammar
+Symbol table needs to support multiple definitions of a variable at different
+scopes using the same identifier.  This is called "shadowing".  To do so, we
+need to keep track of blocks.
+
+Dumps are innermost to outermost; your program prints as it leaves a scope.
+Note: main introduces two scopes: its arguments, and the body.  This holds for
+any function.
+
+Lab consists of filling in the functions in sym.c, sem_sym.c.  Yacc grammar
+calls these functions at certain times as defined in the Yacc file.
+
+See C++ parsing examples on website.
+
+
+
+Reference Output given temp.c:
+
+Dumping identifier table
+bd_loc2   5   4   1
+b_loc1    5   1   1
+Dumping identifier table
+loc1      4   1   1
+loc2      4   1   1
+d_arr     4   20  1
+d_loc     4   4   1
+Dumping identifier table
+Dumping identifier table
+int_glob  2   1   1
+d_glob    2   4   1
+
+
