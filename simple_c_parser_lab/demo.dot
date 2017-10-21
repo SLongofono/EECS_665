@@ -1,0 +1,8 @@
+digraph funcgraph {
+funca;
+funcb;
+funcb -> funca;
+main;
+main -> funca;
+main -> funcb;
+}
