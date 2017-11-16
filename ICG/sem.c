@@ -4,20 +4,29 @@
 # include "sem.h"
 # include "sym.h"
 
+// Tracks formal parameters and their types in the current scope level
 extern int formalnum;
 extern char formaltypes[];
+
+// Tracks local variables and their types in the current scope level
 extern int localnum;
 extern char localtypes[];
+
+// Tracks widths of 
 extern int localwidths[];
 
 int numlabels = 0;                      /* total labels in file */
-int numblabels = 0;                     /* toal backpatch labels in file */
+int numblabels = 0;                     /* total backpatch labels in file */
 
 /*
  * backpatch - backpatch list of quadruples starting at p with k
  */
 void backpatch(struct sem_rec *p, int k){
-	fprintf(stderr, "sem: backpatch not implemented\n");
+	struct sem_rec *curr = p;
+	while(NULL != curr){
+		printf("B%d=L%d\n", p->s_place, k);
+		curr = curr->back.s_link;
+	}
 }
 
 /*
@@ -25,9 +34,7 @@ void backpatch(struct sem_rec *p, int k){
  */
 void bgnstmt(){
 	extern int lineno;
-
 	printf("bgnstmt %d\n", lineno);
-	//   fprintf(stderr, "sem: bgnstmt not implemented\n");
 }
 
 /*
@@ -53,6 +60,19 @@ struct sem_rec *ccexpr(struct sem_rec *e){
 	struct sem_rec *t1;
 
 	if(e){
+		// constant zero cast to e's mode (integer, double).  Inside
+		// gen, the mode will append the type of operation (d,f) and
+		// and use the operation string to populate the semantic
+		// record appropriately.  After it returns, pull out the
+		// values we care about to actually generate the conditional
+		// branch and unconditional branch, implementing the logical
+		// expression in intermediate code.  Node makes this new
+		// record portable by making an allocation on heap.
+		//
+		// For reference, node takes in two integers and two sem_rec*,
+		// representing place, mode, truelist, and falselist.
+		// Truelist shares a union with s_link.  Here, we create place
+		// zero, of type integer, with a truelist 
 		t1 = gen("!=", e, cast(con("0"), e->s_mode), e->s_mode);
 		printf("bt t%d B%d\n", t1->s_place, ++numblabels);
 		printf("br B%d\n", ++numblabels);
@@ -186,22 +206,87 @@ struct sem_rec *exprs(struct sem_rec *l, struct sem_rec *e){
  * fhead - beginning of function body
  */
 void fhead(struct id_entry *p){
-	fprintf(stderr, "sem: fhead not implemented\n");
+	
+	/* The return of fname is passed in, per the grammar
+	 * This allows us to print out the formal arguments based on their
+	 * type.  We want the form: "formal" <b> where b is the size in bytes
+	 * of the parameter type.
+	 *
+	 *
+	 * Looking at dcl, we see that declarations are stored as letters in
+	 * the formaltypes and localtypes arrays, or in an array (in which
+	 * case the intermediate code is already handled for us by dclr).  So
+	 * per the examples, we simply traverse these two arrays, printing the
+	 * as by the time fhead is called, they are already populated with the
+	 * types of formal and local parameters as they were encountered.
+	 *
+	 * Per the examples, we print formals first, then locals.
+	 */
+
+	for(int i = 0; i<formalnum; ++i){
+		if('i' == formaltypes[i]){
+			// integer types 4 bytes
+			printf("formal 4\n");
+		}
+		else{
+			// others are 8 (pointer or double)
+			printf("formal 8\n");
+		}
+	}
+
+	for(int i = 0; i<localnum; ++i){
+		if('i' == localtypes[i]){
+			// integer types 4 bytes
+			printf("localloc 4\n");
+		}
+		else{
+			// others are 8 (pointer or double)
+			printf("localloc 8\n");
+		}
+			
+	}
 }
+
 
 /*
  * fname - function declaration
  */
 struct id_entry *fname(int t, char *id){
-	fprintf(stderr, "sem: fname not implemented\n");
-	return ((struct id_entry *) NULL);
+
+	// Create symbol table entry for the given function using the given
+	// type t, the name id, and the width.  The width specifies the size
+	// of the return
+	int width;
+	switch(t){
+		case T_INT:
+			width = 4;
+			break;
+		default:
+			// Everything else is system address length, including
+			// doubles
+			width = 8;
+	}
+
+	// Print out the intermediate code
+	printf("func %s\n", id);
+	
+	// Create a new scope for the function
+	enterblock();
+
+	return dclr(id, t, width);
 }
+
 
 /*
  * ftail - end of function body
  */
 void ftail(){
-	fprintf(stderr, "sem: ftail not implemented\n");
+	
+	// Print intermediate code stmt
+	printf("fend\n");
+	
+	// Leave function scope
+	leaveblock();
 }
 
 /*
@@ -358,8 +443,13 @@ void startloopscope(){
  * string - generate code for a string
  */
 struct sem_rec *string(char *s){
-	fprintf(stderr, "sem: string not implemented\n");
-	return ((struct sem_rec *) NULL);
+	// Prepare a semantic record from the given string.
+	struct sem_rec *ret = node(nexttemp(), T_STR, (struct sem_rec *)NULL, (struct sem_rec *)NULL);	
+
+	// Print the intermediate code
+	printf("t%d := \"%s\"\n", ret->s_place, s);
+
+	return ret;
 }
 
 
