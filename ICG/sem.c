@@ -484,30 +484,19 @@ struct sem_rec *opb(char *op, struct sem_rec *x, struct sem_rec *y){
  * rel - relational operators
  */
 struct sem_rec *rel(char *op, struct sem_rec *x, struct sem_rec *y){
-	struct sem_rec *cast_y;
+	struct sem_rec *ret = gen(op, x, cast(y, x->s_mode), x->s_mode);
 
-	if(*op!='\0' || x==NULL || y==NULL){
-		return gen(op, x,cast(y, x->s_mode), x->s_mode);
-	}
+	// Need to generate the branches to be taken for this
+	// condition
+	numblabels++;
+	printf("bt t%d B%d\n", currtemp(), numblabels);
+	numblabels++;
+	printf("br B%d\n", numblabels);
+	ret->back.s_true = node(numblabels-1, x->s_mode, (struct sem_rec *)NULL, (struct sem_rec *)NULL);
+	ret->s_false = node(numblabels, x->s_mode, (struct sem_rec *)NULL, (struct sem_rec *)NULL);
 
-	/* if for type consistency of x and y */
-	cast_y = y;
-	if((x->s_mode & T_DOUBLE) && !(y->s_mode & T_DOUBLE)){
-	
-		/*cast y to a double*/
-		printf("t%d = cvf t%d\n", nexttemp(), y->s_place);
-		cast_y = node(currtemp(), T_DOUBLE, (struct sem_rec *) NULL, (struct sem_rec *) NULL);
-	}
-	else if((x->s_mode & T_INT) && !(y->s_mode & T_INT)){
+	return ret;
 
-		/*convert y to integer*/
-		printf("t%d = cvi t%d\n", nexttemp(), y->s_place);
-		cast_y = node(currtemp(), T_INT, (struct sem_rec *) NULL, (struct sem_rec *) NULL);
-	}
-
-	return(node(currtemp(), (x->s_mode&~(T_ARRAY)), (struct sem_rec *)NULL, (struct sem_rec *)NULL));
-	fprintf(stderr, "sem: rel not implemented\n");
-	return ((struct sem_rec *) NULL);
 }
 
 /*
