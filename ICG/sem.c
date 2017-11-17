@@ -22,9 +22,16 @@ int numblabels = 0;                     /* total backpatch labels in file */
  * backpatch - backpatch list of quadruples starting at p with k
  */
 void backpatch(struct sem_rec *p, int k){
+
+	// Traverse the list, updating the place as we go.
+	//
+	// Note: for any given call, we can't know a priori whether we are
+	// updating the true or the false list, only that we need to update
+	// all the entries to the given label number.
 	struct sem_rec *curr = p;
 	while(NULL != curr){
 		printf("B%d=L%d\n", p->s_place, k);
+		p->s_place = k;
 		curr = curr->back.s_link;
 	}
 }
@@ -129,6 +136,10 @@ void dobreak(){
 }
 
 /*
+	fprintf(stderr, "sem: dobreak not implemented\n");
+}
+
+/*
  * docontinue - continue statement
  */
 void docontinue(){
@@ -161,7 +172,12 @@ void dogoto(char *id){
  * doif - one-arm if statement
  */
 void doif(struct sem_rec *e, int m1, int m2){
-	fprintf(stderr, "sem: doif not implemented\n");
+	// Update the true label to jump into the then clause
+	backpatch(e->back.s_true, m1);
+	
+	// Update the false label to jump to the end 
+	backpatch(e->s_false, m2);
+
 }
 
 /*
@@ -169,7 +185,15 @@ void doif(struct sem_rec *e, int m1, int m2){
  */
 void doifelse(struct sem_rec *e, int m1, struct sem_rec *n,
 	      int m2, int m3){
-	fprintf(stderr, "sem: doifelse not implemented\n");
+	// Update the true label to jump into the then clause
+	backpatch(e->back.s_true, m1);
+	
+	// Update the false label to the else clause
+	backpatch(e->s_false, m2);
+
+	// Update the end of each clause to jump to the end
+	backpatch(n, m3);
+
 }
 
 /*
@@ -184,7 +208,14 @@ void doret(struct sem_rec *e){
  */
 void dowhile(int m1, struct sem_rec *e, int m2, struct sem_rec *n,
 	     int m3){
-	fprintf(stderr, "sem: dowhile not implemented\n");
+	// Update with earliest label if while condition if true
+	backpatch(e->back.s_true, m2);
+
+	// Update with end label if result of the while condition if false
+	backpatch(e->s_false, m3);
+
+	// Update the end of the while loop with a jump back to the beginning
+	backpatch(n, m1);
 }
 
 /*
@@ -418,17 +449,6 @@ struct sem_rec *set(char *op, struct sem_rec *x, struct sem_rec *y){
 		cast_y = node(currtemp(), T_INT, (struct sem_rec *) NULL, (struct sem_rec *) NULL);
 	}
 
-	/*output quad for assignment*/
-	if(x->s_mode & T_DOUBLE){
-		printf("t%d := t%d =f t%d\n", nexttemp(),
-		x->s_place, cast_y->s_place);
-	}
-	else{
-		printf("t%d := t%d =i t%d\n", nexttemp(),
-		x->s_place, cast_y->s_place);
-	}
-
-	/*create a new node to allow just created temporary to be referenced later */
 	return(node(currtemp(), (x->s_mode&~(T_ARRAY)), (struct sem_rec *)NULL, (struct sem_rec *)NULL));
 }
 
