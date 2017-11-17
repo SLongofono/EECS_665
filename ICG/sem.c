@@ -60,8 +60,12 @@ struct sem_rec *call(char *f, struct sem_rec *args){
  * ccand - logical and
  */
 struct sem_rec *ccand(struct sem_rec *e1, int m, struct sem_rec *e2){
-	fprintf(stderr, "sem: ccand not implemented\n");
-	return ((struct sem_rec *) NULL);
+	// From the given grammar 6.43, rule 2
+	// Fill in jump if first condition is true to the next condition code
+	backpatch(e1->back.s_true, m);
+
+	// Return record has merged false lists and the modified true list
+	return node(0, 0, e2->back.s_true, merge(e1->s_false, e2->s_false));
 }
 
 /*
@@ -131,15 +135,21 @@ struct sem_rec *ccexpr(struct sem_rec *e){
  * ccnot - logical not
  */
 struct sem_rec *ccnot(struct sem_rec *e){
-	
+	// From the given grammar 6.43, rule 3
+	// Reverses the true and false lists
+	return node(0, 0, e->s_false, e->back.s_true);
 }
 
 /*
  * ccor - logical or
  */
 struct sem_rec *ccor(struct sem_rec *e1, int m, struct sem_rec *e2){
-	fprintf(stderr, "sem: ccor not implemented\n");
-	return ((struct sem_rec *) NULL);
+	// From the given grammar 6.43 rule 1
+	// Fill in with the label for short circuit destination of OR
+	backpatch(e1->s_false, m);
+
+	// Return record includes both true lists or the modified false list
+	return node(0, 0, merge(e1->back.s_true, e2->back.s_true), e2->s_false);
 }
 
 /*
@@ -231,11 +241,12 @@ void doifelse(struct sem_rec *e, int m1, struct sem_rec *n,
 
 /*
  * doret - return statement
+ * 
  */
 void doret(struct sem_rec *e){
 
-
-	gen("ret", e, (struct sem_rec *)NULL, e->s_mode);
+	// Pass firs record as null to catch return case properly
+	gen("ret", (struct sem_rec *)NULL, e,  e->s_mode);
 	/*
 	if(NULL != e){
 		if(e->s_mode == T_INT){
@@ -425,6 +436,12 @@ void labeldcl(char *id){
  * m - generate label and return next temporary number
  */
 int m(){
+
+	/*
+	 * M is used as an anchor of sorts, to create a label to return to in
+	 * any branching construct.  For each, we need a unique number to
+	 * refer to it by, which we track with the global numlabels.
+	 */
 	numlabels++;
 	printf("label L%d\n", numlabels);
 	return numlabels;
@@ -434,6 +451,12 @@ int m(){
  * n - generate goto and return backpatch pointer
  */
 struct sem_rec *n(){
+	/*
+	 * N represents a common endpoint that branching constructs can use to
+	 * move to a specific point in a looping construct.  This might be the
+	 * end, but not necessarily.
+	 */
+
 	// Print the goto as an unconditional branch
 	numblabels++;
 	printf("br B%d\n", numblabels);
@@ -451,10 +474,10 @@ struct sem_rec *op1(char *op, struct sem_rec *y){
 		return (gen(op, (struct sem_rec *) NULL, y, y->s_mode));
 	}
 	else{
-		fprintf(stderr, "sem: op1 not implemented\n");
-		return ((struct sem_rec *) NULL);
+		return gen(op, (struct sem_rec *)NULL, y, y->s_mode);
 	}
 }
+
 
 /*
  * op2 - arithmetic operators
@@ -468,6 +491,7 @@ struct sem_rec *op2(char *op, struct sem_rec *x, struct sem_rec *y){
 	}
 }
 
+
 /*
  * opb - bitwise operators
  */
@@ -480,6 +504,7 @@ struct sem_rec *opb(char *op, struct sem_rec *x, struct sem_rec *y){
 	}
 }
 
+
 /*
  * rel - relational operators
  */
@@ -487,7 +512,7 @@ struct sem_rec *rel(char *op, struct sem_rec *x, struct sem_rec *y){
 	struct sem_rec *ret = gen(op, x, cast(y, x->s_mode), x->s_mode);
 
 	// Need to generate the branches to be taken for this
-	// condition
+	// condition per the grammar 6.43
 	numblabels++;
 	printf("bt t%d B%d\n", currtemp(), numblabels);
 	numblabels++;
@@ -498,6 +523,7 @@ struct sem_rec *rel(char *op, struct sem_rec *x, struct sem_rec *y){
 	return ret;
 
 }
+
 
 /*
  * set - assignment operators
@@ -530,12 +556,14 @@ struct sem_rec *set(char *op, struct sem_rec *x, struct sem_rec *y){
 	return (node(currtemp(), (x->s_mode&~(T_ARRAY)), (struct sem_rec *)NULL, (struct sem_rec *)NULL));
 }
 
+
 /*
  * startloopscope - start the scope for a loop
  */
 void startloopscope(){
 	enterblock();
 }
+
 
 /*
  * string - generate code for a string
@@ -549,7 +577,6 @@ struct sem_rec *string(char *s){
 
 	return ret;
 }
-
 
 
 /************* Helper Functions **************/
