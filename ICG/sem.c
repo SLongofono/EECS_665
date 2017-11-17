@@ -12,7 +12,7 @@ extern char formaltypes[];
 extern int localnum;
 extern char localtypes[];
 
-// Tracks widths of 
+// Tracks widths of locals 
 extern int localwidths[];
 
 int numlabels = 0;                      /* total labels in file */
@@ -28,10 +28,14 @@ void backpatch(struct sem_rec *p, int k){
 	// Note: for any given call, we can't know a priori whether we are
 	// updating the true or the false list, only that we need to update
 	// all the entries to the given label number.
+	//
+	// To handle this, the record passed in should have been merged and
+	// thus collapsed into a single list.  Not every record will have both
+	// defined, and to keep things simple, we use the convention of
+	// traversing only through s_link.
 	struct sem_rec *curr = p;
 	while(NULL != curr){
 		printf("B%d=L%d\n", p->s_place, k);
-		p->s_place = k;
 		curr = curr->back.s_link;
 	}
 }
@@ -67,19 +71,52 @@ struct sem_rec *ccexpr(struct sem_rec *e){
 	struct sem_rec *t1;
 
 	if(e){
-		// constant zero cast to e's mode (integer, double).  Inside
-		// gen, the mode will append the type of operation (d,f) and
-		// and use the operation string to populate the semantic
-		// record appropriately.  After it returns, pull out the
-		// values we care about to actually generate the conditional
-		// branch and unconditional branch, implementing the logical
-		// expression in intermediate code.  Node makes this new
-		// record portable by making an allocation on heap.
-		//
-		// For reference, node takes in two integers and two sem_rec*,
-		// representing place, mode, truelist, and falselist.
-		// Truelist shares a union with s_link.  Here, we create place
-		// zero, of type integer, with a truelist 
+		/* 
+		 * For reference, node takes in two integers and two sem_rec*,
+		 * representing place, mode, truelist, and falselist.  In this
+		 * case, we need to generate a temporary for comparison from
+		 * zero.  This is kind of a complicated process.
+		 *
+		 * First, gen is called, using not equals as the operator, the
+		 * return of a cast of zero to the type of the given
+		 * expression e, and the given expression's type.
+		 *
+		 * Constant does a lookup in the global scope (0) to see if an
+		 * entry exists for the character given ('0').  If it does not
+		 * exists, it installs it into the symbol table.  Within
+		 * con(), it prints out a constant declaration in a temporary
+		 * of the form ti := 0.  Then, it creates a new semantic
+		 * record and the place used for ti with an integer type.
+		 *
+		 * This is fed into cast along with the type of e.  Cast
+		 * checks to see if the record type is double and the
+		 * conversion type is not or vice versa.  If either condition
+		 * holds, a convert statement is printed using gen.
+		 * otherwise, the semantic record is returned as is.
+		 *
+		 * Within gen, with cv passed as the operation, a new
+		 * temporary is printed to be assigned.  Then, it falls
+		 * through to print the op ('cv') and then is caught by the
+		 * check for type double, which prints f, space, and finally
+		 * is caught by the if y!= null clause to print the ti label.
+		 * gen then returns a new sem_rec with the given type.
+		 *
+		 * The sem_rec returned by the call to gen in cast is passed
+		 * upstream and then back down into gen for the call
+		 * immediately below.  Again, a new temporary is preinted for
+		 * assignment.  This time, the op is caught by the
+		 * is(x!= NULL && *op != 'f') clause, and the place of the
+		 * e sem_rec is printed, followed by the op, and then the
+		 * place of the cast sem_rec: tnew := te !=f ti.  So we have
+		 * converted zero if necessary, given it a temp, and now finally
+		 * we are making a comparison and assigning it to a temp.
+		 * 
+		 * After returning, t1 holds the place of the result, so we
+		 * can issue the conditional branch followed by the failure
+		 * branch.  To wrap up, return a node with the truelist as the
+		 * condition true record and the false list as the second
+		 * branch.
+		 */
 		t1 = gen("!=", e, cast(con("0"), e->s_mode), e->s_mode);
 		printf("bt t%d B%d\n", t1->s_place, ++numblabels);
 		printf("br B%d\n", ++numblabels);
@@ -222,7 +259,7 @@ void dowhile(int m1, struct sem_rec *e, int m2, struct sem_rec *n,
  * endloopscope - end the scope for a loop
  */
 void endloopscope(int m){
-	fprintf(stderr, "sem: endloopscope not implemented\n");
+	leaveblock();
 }
 
 /*
@@ -363,23 +400,31 @@ struct sem_rec *tom_index(struct sem_rec *x, struct sem_rec *i){
  * labeldcl - process a label declaration
  */
 void labeldcl(char *id){
-	fprintf(stderr, "sem: labeldcl not implemented\n");
+	// Cue the lookup table to install an id (or error out)
+	slookup(id);
+
+	// Make a new local label
+	numlabels++;
+	printf("label L%d\n", numlabels);
 }
 
 /*
  * m - generate label and return next temporary number
  */
 int m(){
-	fprintf(stderr, "sem: m not implemented\n");
-	return (0);
+	numlabels++;
+	printf("label L%d\n", numlabels);
+	return numlabels;
 }
 
 /*
  * n - generate goto and return backpatch pointer
  */
 struct sem_rec *n(){
-	fprintf(stderr, "sem: n not implemented\n");
-	return ((struct sem_rec *) NULL);
+	// Print the goto as an unconditional branch
+	numblabels++;
+	printf("br B%d\n", numblabels);
+	return node(numblabels, T_INT, (struct sem_rec *)NULL, (struct sem_rec *)NULL);
 }
 
 /*
@@ -456,7 +501,7 @@ struct sem_rec *set(char *op, struct sem_rec *x, struct sem_rec *y){
  * startloopscope - start the scope for a loop
  */
 void startloopscope(){
-	fprintf(stderr, "sem: startloopscope not implemented\n");
+	enterblock();
 }
 
 /*
