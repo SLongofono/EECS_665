@@ -3,7 +3,7 @@
 # include "semutil.h"
 # include "sem.h"
 # include "sym.h"
-
+#include <string.h>
 // Tracks formal parameters and their types in the current scope level
 extern int formalnum;
 extern char formaltypes[];
@@ -131,8 +131,7 @@ struct sem_rec *ccexpr(struct sem_rec *e){
  * ccnot - logical not
  */
 struct sem_rec *ccnot(struct sem_rec *e){
-	fprintf(stderr, "sem: ccnot not implemented\n");
-	return ((struct sem_rec *) NULL);
+	
 }
 
 /*
@@ -157,7 +156,7 @@ struct sem_rec *con(char *x){
 	}
 
 	/* print the quad t%d = const */
-	printf("t%d = %s\n", nexttemp(), x);
+	printf("t%d := %s\n", nexttemp(), x);
 
 	/* construct a new node corresponding to this constant generation 
 	  into a temporary. This will allow this temporary to be referenced
@@ -172,9 +171,6 @@ void dobreak(){
 	fprintf(stderr, "sem: dobreak not implemented\n");
 }
 
-/*
-	fprintf(stderr, "sem: dobreak not implemented\n");
-}
 
 /*
  * docontinue - continue statement
@@ -237,7 +233,23 @@ void doifelse(struct sem_rec *e, int m1, struct sem_rec *n,
  * doret - return statement
  */
 void doret(struct sem_rec *e){
-	fprintf(stderr, "sem: doret not implemented\n");
+
+
+	gen("ret", e, (struct sem_rec *)NULL, e->s_mode);
+	/*
+	if(NULL != e){
+		if(e->s_mode == T_INT){
+			printf("reti t%d\n", e->s_place);	
+		}
+		else{
+			printf("retf t%d\n", e->s_place);	
+		}
+
+	}
+	else{
+		printf("reti\n");
+	}
+	*/
 }
 
 /*
@@ -259,15 +271,16 @@ void dowhile(int m1, struct sem_rec *e, int m2, struct sem_rec *n,
  * endloopscope - end the scope for a loop
  */
 void endloopscope(int m){
-	leaveblock();
+	for(int i = 0; i<m; ++i){
+		leaveblock();
+	}
 }
 
 /*
  * exprs - form a list of expressions
  */
 struct sem_rec *exprs(struct sem_rec *l, struct sem_rec *e){
-	fprintf(stderr, "sem: exprs not implemented\n");
-	return ((struct sem_rec *) NULL);
+	return merge(l,e);
 }
 
 /*
@@ -447,36 +460,34 @@ struct sem_rec *op1(char *op, struct sem_rec *y){
  * op2 - arithmetic operators
  */
 struct sem_rec *op2(char *op, struct sem_rec *x, struct sem_rec *y){
-	fprintf(stderr, "sem: op2 not implemented\n");
-	return ((struct sem_rec *) NULL);
+	if(NULL != x){
+		return gen(op,x,y,y->s_mode);
+	}
+	else{
+		return (struct sem_rec *)NULL;
+	}
 }
 
 /*
  * opb - bitwise operators
  */
 struct sem_rec *opb(char *op, struct sem_rec *x, struct sem_rec *y){
-	fprintf(stderr, "sem: opb not implemented\n");
-	return ((struct sem_rec *) NULL);
+	if(NULL != x){
+		return gen(op,x,y,y->s_mode);
+	}
+	else{
+		return ((struct sem_rec *) NULL);
+	}
 }
 
 /*
  * rel - relational operators
  */
 struct sem_rec *rel(char *op, struct sem_rec *x, struct sem_rec *y){
-	fprintf(stderr, "sem: rel not implemented\n");
-	return ((struct sem_rec *) NULL);
-}
-
-/*
- * set - assignment operators
- */
-struct sem_rec *set(char *op, struct sem_rec *x, struct sem_rec *y){
-	/* assign the value of expression y to the lval x */
-	struct sem_rec *p, *cast_y;
+	struct sem_rec *cast_y;
 
 	if(*op!='\0' || x==NULL || y==NULL){
-		fprintf(stderr, "sem: set not implemented\n");
-		return((struct sem_rec *) NULL);
+		return gen(op, x,cast(y, x->s_mode), x->s_mode);
 	}
 
 	/* if for type consistency of x and y */
@@ -495,6 +506,39 @@ struct sem_rec *set(char *op, struct sem_rec *x, struct sem_rec *y){
 	}
 
 	return(node(currtemp(), (x->s_mode&~(T_ARRAY)), (struct sem_rec *)NULL, (struct sem_rec *)NULL));
+	fprintf(stderr, "sem: rel not implemented\n");
+	return ((struct sem_rec *) NULL);
+}
+
+/*
+ * set - assignment operators
+ */
+struct sem_rec *set(char *op, struct sem_rec *x, struct sem_rec *y){
+	/* assign the value of expression y to the lval x */
+	struct sem_rec *p, *cast_y;
+
+	if(*op!='\0' || x==NULL || y==NULL){
+		return gen(op, x, cast(y, x->s_mode), x->s_mode);
+	}
+
+	/* if for type consistency of x and y */
+	cast_y = y;
+	if((x->s_mode & T_DOUBLE) && !(y->s_mode & T_DOUBLE)){
+	
+		/*cast y to a double*/
+		printf("t%d := cvf t%d\n", nexttemp(), y->s_place);
+		cast_y = node(currtemp(), T_DOUBLE, (struct sem_rec *) NULL, (struct sem_rec *) NULL);
+	}
+	else if((x->s_mode & T_INT) && !(y->s_mode & T_INT)){
+
+		/*convert y to integer*/
+		printf("t%d := cvi t%d\n", nexttemp(), y->s_place);
+		cast_y = node(currtemp(), T_INT, (struct sem_rec *) NULL, (struct sem_rec *) NULL);
+		printf("t%d := t%d\n", nexttemp(), y->s_place);
+	}
+
+
+	return (node(currtemp(), (x->s_mode&~(T_ARRAY)), (struct sem_rec *)NULL, (struct sem_rec *)NULL));
 }
 
 /*
