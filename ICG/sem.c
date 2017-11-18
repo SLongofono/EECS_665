@@ -52,8 +52,7 @@ void bgnstmt(){
  * call - procedure invocation
  */
 struct sem_rec *call(char *f, struct sem_rec *args){
-	fprintf(stderr, "sem: call not implemented\n");
-	return ((struct sem_rec *) NULL);
+	return node(0,0,(struct sem_rec *)NULL, (struct sem_rec *)NULL);
 }
 
 /*
@@ -201,14 +200,44 @@ void dodo(int m1, int m2, struct sem_rec *e, int m3){
  */
 void dofor(int m1, struct sem_rec *e2, int m2, struct sem_rec *n1, int m3,
 	   struct sem_rec *n2, int m4){
-	fprintf(stderr, "sem: dofor not implemented\n");
+	/*
+	 * From cgram.y, we see the following pattern:
+	 *
+	 * for(i=j; i<k; i++) matches
+	 * e1 (assignment)
+	 * m1: e2 (condition check)
+	 * m2: increment n1()
+	 * m3: loop statements n2()
+	 * m4: end construct
+	 *
+	 * m1 labels the condition
+	 * m2 labels the increment, followed by a jump to the condition at m1
+	 * m3 is the beginning of the loop section
+	 * n1 is the jump to the condition check after incrementing
+	 * The final m is the endpoint
+	 * n2 is the jump to the increment label m2 after each loop
+	 *
+	 * So e2 true jumps to m3, e2 false jumps to m4
+	 *
+	 * After incrementing, we need to jump into the loop section, so n1
+	 * unconditionally jumps to m2
+	 *
+	 * n2 starts the process over, so it needs to jump to the condition
+	 * label m1
+	 */
+	backpatch(e2->back.s_true, m3);
+	backpatch(e2->s_false, m4);
+	backpatch(n1, m1);
+	backpatch(n2, m2);
+//	endloopscope(1);
 }
 
 /*
  * dogoto - goto statement
  */
 void dogoto(char *id){
-	fprintf(stderr, "sem: dogoto not implemented\n");
+	// Use the symbol table to get the appropriate entry to jump to
+	printf("br L%s\n", slookup(id));
 }
 
 /*
@@ -276,6 +305,10 @@ void dowhile(int m1, struct sem_rec *e, int m2, struct sem_rec *n,
 
 	// Update the end of the while loop with a jump back to the beginning
 	backpatch(n, m1);
+
+	// Since this is the last thing done for the loop, and at this point
+	// everything is computed, adjust the scope
+//	endloopscope(1);
 }
 
 /*
@@ -345,6 +378,7 @@ void fhead(struct id_entry *p){
  */
 struct id_entry *fname(int t, char *id){
 
+	
 	// Create symbol table entry for the given function using the given
 	// type t, the name id, and the width.  The width specifies the size
 	// of the return
@@ -364,6 +398,11 @@ struct id_entry *fname(int t, char *id){
 	
 	// Create a new scope for the function
 	enterblock();
+	
+	// Initialize formals and locals list for this context
+	formalnum = 0;
+	localnum = 0;
+
 
 	return dclr(id, t, width);
 }
