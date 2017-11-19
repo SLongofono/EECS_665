@@ -52,7 +52,59 @@ void bgnstmt(){
  * call - procedure invocation
  */
 struct sem_rec *call(char *f, struct sem_rec *args){
-	return node(0,0,(struct sem_rec *)NULL, (struct sem_rec *)NULL);
+
+	printf("\n\nIN CALL!!!\n\n");
+
+	// Per C calling convention, the arguments should be prepared before
+	// the call is made (i.e. pushed onto the stack.
+	struct sem_rec *curr = args;
+	int numargs = 0;
+
+	while(NULL != curr){
+		switch(curr->s_mode){
+			case T_INT:
+				printf("argi, t%d\n", curr->s_place);
+				break;
+			case T_DOUBLE:
+				printf("argf, t%d\n", curr->s_place);
+				break;
+			default:
+				printf("arg, t%d\n", curr->s_place);
+				break;
+		}
+		numargs++;
+		curr = curr->back.s_link;
+	}
+
+	// Make the call
+	printf("%s %d\n", f, numargs);
+	
+	// Check if it exists like we did for ids
+	struct id_entry *p;
+
+	if((p = lookup(f, 0)) == NULL){
+		yyerror("called undeclared function");
+		return (struct sem_rec *)NULL;
+		/*
+		 * Just kidding, we were assured correct input.  report and
+		 * carry on
+		 *
+		p = install(f, -1);
+		p->i_type = T_PROC;
+		// Per stackexchange, C cannot have local functions.  They may
+		// be forward declared and used within a function, but
+		// otherwise they should eb global to the file.
+		p->i_scope = GLOBAL;
+		p->i_defined = 1;
+
+		// Now, actually declare the function
+		fname
+
+		*/
+	}
+	
+	// At this point, we have a valid entry
+	return node(nexttemp(), T_PROC, (struct sem_rec *)NULL,(struct sem_rec *)NULL);
 }
 
 /*
@@ -229,7 +281,7 @@ void dofor(int m1, struct sem_rec *e2, int m2, struct sem_rec *n1, int m3,
 	backpatch(e2->s_false, m4);
 	backpatch(n1, m1);
 	backpatch(n2, m2);
-//	endloopscope(1);
+	endloopscope(1);
 }
 
 /*
@@ -308,7 +360,7 @@ void dowhile(int m1, struct sem_rec *e, int m2, struct sem_rec *n,
 
 	// Since this is the last thing done for the loop, and at this point
 	// everything is computed, adjust the scope
-//	endloopscope(1);
+	endloopscope(1);
 }
 
 /*
@@ -378,10 +430,17 @@ void fhead(struct id_entry *p){
  */
 struct id_entry *fname(int t, char *id){
 
-	
-	// Create symbol table entry for the given function using the given
-	// type t, the name id, and the width.  The width specifies the size
-	// of the return
+	/* Something not right here.
+	if(NULL != install(id, 0)){
+		// This is actually a call, not a declaration.
+		char s[255];
+		sprintf(s, "Double declaration: %s already declared", id);
+		yyerror(s);
+		return (struct id_entry *)NULL;
+	}
+	*/
+	printf("A\n");
+	// Width is byte width of the return
 	int width;
 	switch(t){
 		case T_INT:
@@ -395,16 +454,27 @@ struct id_entry *fname(int t, char *id){
 
 	// Print out the intermediate code
 	printf("func %s\n", id);
-	
-	// Create a new scope for the function
-	enterblock();
+	printf("B\n");
 	
 	// Initialize formals and locals list for this context
 	formalnum = 0;
 	localnum = 0;
 
+	printf("C\n");
+	// Create symbol table entry for the given function using the given
+	// type t, the name id, and the width.
+	struct id_entry * ret = dclr(id, t, width);
 
-	return dclr(id, t, width);
+	printf("Created entry for %s :\n\tname: %s\n\ttype: %d\n\tscope: %d\n", id, ret->i_name, ret->i_type, ret->i_scope);
+
+	// Create a new scope for the function
+	enterblock();
+	
+
+	if(NULL != ret){
+		return ret;	
+	}
+	yyerror("function declaration returned null");
 }
 
 
