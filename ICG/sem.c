@@ -53,8 +53,6 @@ void bgnstmt(){
  */
 struct sem_rec *call(char *f, struct sem_rec *args){
 
-	printf("\n\nIN CALL!!!\n\n");
-
 	// Per C calling convention, the arguments should be prepared before
 	// the call is made (i.e. pushed onto the stack.
 	struct sem_rec *curr = args;
@@ -63,22 +61,19 @@ struct sem_rec *call(char *f, struct sem_rec *args){
 	while(NULL != curr){
 		switch(curr->s_mode){
 			case T_INT:
-				printf("argi, t%d\n", curr->s_place);
+				printf("argi t%d\n", curr->s_place);
 				break;
 			case T_DOUBLE:
-				printf("argf, t%d\n", curr->s_place);
+				printf("argf t%d\n", curr->s_place);
 				break;
 			default:
-				printf("arg, t%d\n", curr->s_place);
+				printf("arg t%d\n", curr->s_place);
 				break;
 		}
 		numargs++;
 		curr = curr->back.s_link;
 	}
 
-	// Make the call
-	printf("%s %d\n", f, numargs);
-	
 	// Check if it exists like we did for ids
 	struct id_entry *p;
 
@@ -104,7 +99,26 @@ struct sem_rec *call(char *f, struct sem_rec *args){
 	}
 	
 	// At this point, we have a valid entry
-	return node(nexttemp(), T_PROC, (struct sem_rec *)NULL,(struct sem_rec *)NULL);
+	
+	// Name the global identifier
+	printf("t%d := global %s\n", nexttemp(), f);
+
+	char temp[1] = {'f'};
+
+	/*
+	 * Use gen to print out the call
+	 *
+	 * We want to pass in the char* f, a null node with the name of global
+	 * id above as its place, another null node with its place as the
+	 * number of args, and the type associated with this function from the
+	 * symbol table.
+	 */
+	return gen(temp,
+		   node(currtemp(), 0, (struct sem_rec *)NULL, (struct sem_rec *)NULL),
+		   node(numargs, 0, (struct sem_rec *)NULL, (struct sem_rec *)NULL),
+		   p->i_type);
+
+//	return node(nexttemp(), T_PROC, (struct sem_rec *)NULL,(struct sem_rec *)NULL);
 }
 
 /*
@@ -229,7 +243,8 @@ struct sem_rec *con(char *x){
  * dobreak - break statement
  */
 void dobreak(){
-	fprintf(stderr, "sem: dobreak not implemented\n");
+	// Jump out using nearest known endpoint label
+	n();
 }
 
 
@@ -237,14 +252,42 @@ void dobreak(){
  * docontinue - continue statement
  */
 void docontinue(){
-	fprintf(stderr, "sem: docontinue not implemented\n");
+	// Jump back to nearest known loop start label
+	m();
 }
 
 /*
  * dodo - do statement
  */
 void dodo(int m1, int m2, struct sem_rec *e, int m3){
-	fprintf(stderr, "sem: dodo not implemented\n");
+
+	/*
+	 * From the grammaer in cgram.y
+	 * Do m1 s lblstmt WHILE ( m2 cexpr e ); m3
+	 *
+	 * Three points of interest:
+	 *
+	 * do{
+	 *	m1:
+	 *	<stmts>
+	 * }
+	 * while(
+	 * 		m2:
+	 *		expr
+	 * 	)
+	 * m3
+	 *
+	 * So we want e->true to go back to m1
+	 * so we want e->false to go to m3
+	 * so m2 needs to be linked to the n(), but that isn't given.
+	 * If the n exists, it would need to be backpatch to m2.  We need to
+	 * track loops somehow, so we have an existing n to use.
+	 *
+	 */
+	backpatch(e->back.s_true, m1);
+	backpatch(e->s_false, m3);
+
+	// TODO implement counting loops and an n() to backpatch to m2
 }
 
 /*
@@ -328,20 +371,6 @@ void doret(struct sem_rec *e){
 
 	// Pass firs record as null to catch return case properly
 	gen("ret", (struct sem_rec *)NULL, e,  e->s_mode);
-	/*
-	if(NULL != e){
-		if(e->s_mode == T_INT){
-			printf("reti t%d\n", e->s_place);	
-		}
-		else{
-			printf("retf t%d\n", e->s_place);	
-		}
-
-	}
-	else{
-		printf("reti\n");
-	}
-	*/
 }
 
 /*
@@ -439,7 +468,6 @@ struct id_entry *fname(int t, char *id){
 		return (struct id_entry *)NULL;
 	}
 	*/
-	printf("A\n");
 	// Width is byte width of the return
 	int width;
 	switch(t){
@@ -454,18 +482,14 @@ struct id_entry *fname(int t, char *id){
 
 	// Print out the intermediate code
 	printf("func %s\n", id);
-	printf("B\n");
 	
 	// Initialize formals and locals list for this context
 	formalnum = 0;
 	localnum = 0;
 
-	printf("C\n");
 	// Create symbol table entry for the given function using the given
 	// type t, the name id, and the width.
 	struct id_entry * ret = dclr(id, t, width);
-
-	printf("Created entry for %s :\n\tname: %s\n\ttype: %d\n\tscope: %d\n", id, ret->i_name, ret->i_type, ret->i_scope);
 
 	// Create a new scope for the function
 	enterblock();
@@ -661,6 +685,8 @@ struct sem_rec *set(char *op, struct sem_rec *x, struct sem_rec *y){
 		printf("t%d := t%d\n", nexttemp(), y->s_place);
 	}
 
+	// Print code for assignment
+	printf("t%d := t%d =%c t%d\n", nexttemp(), x->s_place, ((x->s_mode & T_INT)?'i':'f'), y->s_place);
 
 	return (node(currtemp(), (x->s_mode&~(T_ARRAY)), (struct sem_rec *)NULL, (struct sem_rec *)NULL));
 }
