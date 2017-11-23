@@ -1,3 +1,11 @@
+/* @file 	sem.c
+ * @author 	Stephen Longofono
+ * @date	November 2017
+ * @brief	This program works together with the grammar defined in
+ * 		cgram.y to produce intermediate code.
+ */
+
+
 # include <stdio.h>
 # include "cc.h"
 # include "semutil.h"
@@ -6,6 +14,10 @@
 
 #include <string.h>
 #define MAXLOOPS 500
+
+// Forward declare the error function so gcc will shut up
+extern void yyerror(const char *s);
+
 // Tracks formal parameters and their types in the current scope level
 extern int formalnum;
 extern char formaltypes[];
@@ -28,16 +40,18 @@ struct sem_rec* loops[MAXLOOPS];	// Track n for patching
  */
 void backpatch(struct sem_rec *p, int k){
 
-	// Traverse the list, updating the place as we go.
-	//
-	// Note: for any given call, we can't know a priori whether we are
-	// updating the true or the false list, only that we need to update
-	// all the entries to the given label number.
-	//
-	// To handle this, the record passed in should have been merged and
-	// thus collapsed into a single list.  Not every record will have both
-	// defined, and to keep things simple, we use the convention of
-	// traversing only through s_link.
+	/* Traverse the list, updating the place as we go.
+	 *
+	 * Note: for any given call, we can't know a priori whether we are
+	 * updating the true or the false list, only that we need to update
+	 * all the entries to the given label number.
+	 *
+	 * To handle this, the record passed in should have been merged and
+	 * thus collapsed into a single list.  Not every record will have both
+	 * defined, and to keep things simple, we use the convention of
+	 * traversing only through s_link.
+	 */
+
 	struct sem_rec *curr = p;
 	while(NULL != curr){
 		printf("B%d=L%d\n", p->s_place, k);
@@ -45,13 +59,17 @@ void backpatch(struct sem_rec *p, int k){
 	}
 }
 
+
 /*
  * bgnstmt - encountered the beginning of a statement
  */
 void bgnstmt(){
+
+	// TODO Figure out what the f is wrong with this...
 	extern int lineno;
 	printf("bgnstmt %d\n", lineno);
 }
+
 
 /*
  * call - procedure invocation
@@ -83,7 +101,6 @@ struct sem_rec *call(char *f, struct sem_rec *args){
 	struct id_entry *p;
 
 	if((p = lookup(f, 0)) == NULL){
-		yyerror("called undeclared function");
 		return (struct sem_rec *)NULL;
 		/*
 		 * Just kidding, we were assured correct input.  report and
@@ -122,14 +139,14 @@ struct sem_rec *call(char *f, struct sem_rec *args){
 		   node(currtemp(), 0, (struct sem_rec *)NULL, (struct sem_rec *)NULL),
 		   node(numargs, 0, (struct sem_rec *)NULL, (struct sem_rec *)NULL),
 		   p->i_type);
-
-//	return node(nexttemp(), T_PROC, (struct sem_rec *)NULL,(struct sem_rec *)NULL);
 }
+
 
 /*
  * ccand - logical and
  */
 struct sem_rec *ccand(struct sem_rec *e1, int m, struct sem_rec *e2){
+
 	// From the given grammar 6.43, rule 2
 	// Fill in jump if first condition is true to the next condition code
 	backpatch(e1->back.s_true, m);
@@ -138,10 +155,12 @@ struct sem_rec *ccand(struct sem_rec *e1, int m, struct sem_rec *e2){
 	return node(0, 0, e2->back.s_true, merge(e1->s_false, e2->s_false));
 }
 
+
 /*
  * ccexpr - convert arithmetic expression to logical expression
  */
 struct sem_rec *ccexpr(struct sem_rec *e){
+	
 	struct sem_rec *t1;
 
 	if(e){
@@ -194,7 +213,11 @@ struct sem_rec *ccexpr(struct sem_rec *e){
 		t1 = gen("!=", e, cast(con("0"), e->s_mode), e->s_mode);
 		printf("bt t%d B%d\n", t1->s_place, ++numblabels);
 		printf("br B%d\n", ++numblabels);
-		return (node(0, 0, node(numblabels-1, 0, (struct sem_rec *) NULL, (struct sem_rec *) NULL), node(numblabels, 0, (struct sem_rec *) NULL, (struct sem_rec *) NULL)));
+		return 	node(0,
+			     0,
+			     node(numblabels-1, 0, (struct sem_rec *) NULL, (struct sem_rec *) NULL),
+			     node(numblabels, 0, (struct sem_rec *) NULL, (struct sem_rec *) NULL)
+			);
 	}
 	else{
 		fprintf(stderr, "Argument sem_rec is NULL\n");
@@ -205,15 +228,18 @@ struct sem_rec *ccexpr(struct sem_rec *e){
  * ccnot - logical not
  */
 struct sem_rec *ccnot(struct sem_rec *e){
+	
 	// From the given grammar 6.43, rule 3
 	// Reverses the true and false lists
 	return node(0, 0, e->s_false, e->back.s_true);
 }
 
+
 /*
  * ccor - logical or
  */
 struct sem_rec *ccor(struct sem_rec *e1, int m, struct sem_rec *e2){
+	
 	// From the given grammar 6.43 rule 1
 	// Fill in with the label for short circuit destination of OR
 	backpatch(e1->s_false, m);
@@ -222,10 +248,12 @@ struct sem_rec *ccor(struct sem_rec *e1, int m, struct sem_rec *e2){
 	return node(0, 0, merge(e1->back.s_true, e2->back.s_true), e2->s_false);
 }
 
+
 /*
  * con - constant reference in an expression
  */
 struct sem_rec *con(char *x){
+	
 	struct id_entry *p;
 
 	if((p = lookup(x, 0)) == NULL){
@@ -244,10 +272,12 @@ struct sem_rec *con(char *x){
 	return(node(currtemp(), p->i_type, (struct sem_rec *) NULL, (struct sem_rec *) NULL));
 }
 
+
 /*
  * dobreak - break statement
  */
 void dobreak(){
+	
 	// Jump out using nearest known endpoint label
 	
 	// Print out intermediate code
@@ -270,7 +300,6 @@ void dobreak(){
 	
 	// Make a new node for the label number generated above
 	curr = node(numblabels, 0, (struct sem_rec *)NULL, (struct sem_rec *)NULL);
-
 }
 
 
@@ -278,6 +307,7 @@ void dobreak(){
  * docontinue - continue statement
  */
 void docontinue(){
+	
 	// Jump back to nearest known loop start label
 	
 	// Print out intermediate code
@@ -300,8 +330,8 @@ void docontinue(){
 	
 	// Make a new node for the label number generated above
 	curr = node(numblabels, 0, (struct sem_rec *)NULL, (struct sem_rec *)NULL);
-
 }
+
 
 /*
  * dodo - do statement
@@ -346,6 +376,7 @@ void dodo(int m1, int m2, struct sem_rec *e, int m3){
 	// Pass the endpoint target to endloopscope to let it clean up.
 	endloopscope(m3);
 }
+
 
 /*
  * dofor - for statement
@@ -395,31 +426,36 @@ void dofor(int m1, struct sem_rec *e2, int m2, struct sem_rec *n1, int m3,
 	endloopscope(m4);
 }
 
+
 /*
  * dogoto - goto statement
  */
 void dogoto(char *id){
+	
 	// Use the symbol table to get the appropriate entry to jump to
 	printf("br L%s\n", slookup(id));
 }
+
 
 /*
  * doif - one-arm if statement
  */
 void doif(struct sem_rec *e, int m1, int m2){
+	
 	// Update the true label to jump into the then clause
 	backpatch(e->back.s_true, m1);
 	
 	// Update the false label to jump to the end 
 	backpatch(e->s_false, m2);
-
 }
+
 
 /*
  * doifelse - if then else statement
  */
 void doifelse(struct sem_rec *e, int m1, struct sem_rec *n,
 	      int m2, int m3){
+	
 	// Update the true label to jump into the then clause
 	backpatch(e->back.s_true, m1);
 	
@@ -428,8 +464,8 @@ void doifelse(struct sem_rec *e, int m1, struct sem_rec *n,
 
 	// Update the end of each clause to jump to the end
 	backpatch(n, m3);
-
 }
+
 
 /*
  * doret - return statement
@@ -441,11 +477,13 @@ void doret(struct sem_rec *e){
 	gen("ret", (struct sem_rec *)NULL, e,  e->s_mode);
 }
 
+
 /*
  * dowhile - while statement
  */
 void dowhile(int m1, struct sem_rec *e, int m2, struct sem_rec *n,
 	     int m3){
+
 	// Update with earliest label if while condition if true
 	backpatch(e->back.s_true, m2);
 
@@ -465,10 +503,12 @@ void dowhile(int m1, struct sem_rec *e, int m2, struct sem_rec *n,
 	endloopscope(m3);
 }
 
+
 /*
  * endloopscope - end the scope for a loop
  */
 void endloopscope(int m){
+	
 	/*
 	 * Now, we need to clean up the looping tracking.  First, patch in the
 	 * given m, such that it will jump to the endpoint.  Then, set the
@@ -483,12 +523,15 @@ void endloopscope(int m){
 	leaveblock();
 }
 
+
 /*
  * exprs - form a list of expressions
  */
 struct sem_rec *exprs(struct sem_rec *l, struct sem_rec *e){
+	
 	return merge(l,e);
 }
+
 
 /*
  * fhead - beginning of function body
@@ -530,8 +573,7 @@ void fhead(struct id_entry *p){
 		else{
 			// others are 8 (pointer or double)
 			printf("localloc 8\n");
-		}
-			
+		}		
 	}
 }
 
@@ -541,15 +583,6 @@ void fhead(struct id_entry *p){
  */
 struct id_entry *fname(int t, char *id){
 
-	/* Something not right here.
-	if(NULL != install(id, 0)){
-		// This is actually a call, not a declaration.
-		char s[255];
-		sprintf(s, "Double declaration: %s already declared", id);
-		yyerror(s);
-		return (struct id_entry *)NULL;
-	}
-	*/
 	// Width is byte width of the return
 	int width;
 	switch(t){
@@ -596,6 +629,7 @@ void ftail(){
 	leaveblock();
 }
 
+
 /*
  * id - variable reference
  */
@@ -624,21 +658,28 @@ struct sem_rec *id(char *x){
 	}
 
 	/* add the T_ADDR to know that it is still an address */
-	return (node(currtemp(), p->i_type|T_ADDR, (struct sem_rec *) NULL,
-	             (struct sem_rec *) NULL));
+	return node(	currtemp(),
+			p->i_type|T_ADDR,
+			(struct sem_rec *) NULL,
+			(struct sem_rec *) NULL
+			);
 }
+
 
 /*
  * index - subscript
  */
 struct sem_rec *tom_index(struct sem_rec *x, struct sem_rec *i){
+
 	return (gen("[]", x, cast(i, T_INT), x->s_mode&~(T_ARRAY)));
 }
+
 
 /*
  * labeldcl - process a label declaration
  */
 void labeldcl(char *id){
+
 	// Cue the lookup table to install an id (or error out)
 	slookup(id);
 
@@ -646,6 +687,7 @@ void labeldcl(char *id){
 	numlabels++;
 	printf("label L%d\n", numlabels);
 }
+
 
 /*
  * m - generate label and return next temporary number
@@ -661,6 +703,7 @@ int m(){
 	printf("label L%d\n", numlabels);
 	return numlabels;
 }
+
 
 /*
  * n - generate goto and return backpatch pointer
@@ -678,10 +721,12 @@ struct sem_rec *n(){
 	return node(numblabels, T_INT, (struct sem_rec *)NULL, (struct sem_rec *)NULL);
 }
 
+
 /*
  * op1 - unary operators
  */
 struct sem_rec *op1(char *op, struct sem_rec *y){
+
 	if(*op == '@' && !(y->s_mode&T_ARRAY)){
 	 /* get rid of T_ADDR if it is being dereferenced so can handle
 	    T_DOUBLE types correctly */
@@ -698,6 +743,7 @@ struct sem_rec *op1(char *op, struct sem_rec *y){
  * op2 - arithmetic operators
  */
 struct sem_rec *op2(char *op, struct sem_rec *x, struct sem_rec *y){
+
 	if(NULL != x){
 		return gen(op,x,y,y->s_mode);
 	}
@@ -711,6 +757,7 @@ struct sem_rec *op2(char *op, struct sem_rec *x, struct sem_rec *y){
  * opb - bitwise operators
  */
 struct sem_rec *opb(char *op, struct sem_rec *x, struct sem_rec *y){
+	
 	if(NULL != x){
 		return gen(op,x,y,y->s_mode);
 	}
@@ -724,6 +771,7 @@ struct sem_rec *opb(char *op, struct sem_rec *x, struct sem_rec *y){
  * rel - relational operators
  */
 struct sem_rec *rel(char *op, struct sem_rec *x, struct sem_rec *y){
+	
 	struct sem_rec *ret = gen(op, x, cast(y, x->s_mode), x->s_mode);
 
 	// Need to generate the branches to be taken for this
@@ -736,7 +784,6 @@ struct sem_rec *rel(char *op, struct sem_rec *x, struct sem_rec *y){
 	ret->s_false = node(numblabels, x->s_mode, (struct sem_rec *)NULL, (struct sem_rec *)NULL);
 
 	return ret;
-
 }
 
 
@@ -744,6 +791,7 @@ struct sem_rec *rel(char *op, struct sem_rec *x, struct sem_rec *y){
  * set - assignment operators
  */
 struct sem_rec *set(char *op, struct sem_rec *x, struct sem_rec *y){
+	
 	/* assign the value of expression y to the lval x */
 	struct sem_rec *p, *cast_y, *p2;
 	
@@ -774,13 +822,6 @@ struct sem_rec *set(char *op, struct sem_rec *x, struct sem_rec *y){
 		// Do the assignment
 		return gen("=", x, p2, cast_y->s_mode);
 			
-
-		//printf("t%d := @i t%d\n", nexttemp(), x->s_place);
-		//printf("t%d := t%d %si t%d\n", nexttemp(), currtemp(), op, y->s_place);
-		//gen(op, x, y, x->s_mode);
-		//printf("t%d := @f t%d\n", nexttemp(), x->s_place);
-		//printf("t%d := t%d %sf t%d\n", nexttemp(), currtemp(), op, y->s_place);
-		//gen(op, x, y, x->s_mode);			
 	}
 
 	/* if for type consistency of x and y */
@@ -806,50 +847,10 @@ struct sem_rec *set(char *op, struct sem_rec *x, struct sem_rec *y){
 	
 	/*create a new node to allow just created temporary to be referenced later */
 	return(	node(currtemp(),
-		(x->s_mode&~(T_ARRAY)),
-		(struct sem_rec *)NULL,
-		(struct sem_rec *)NULL))
-	;
-
-	/*
-	struct sem_rec *p, *cast_y, *ret;
-
-	// if one or the other is null, just generate a node and be done
-	if(*op!='\0' || x==NULL || y==NULL){
-		if(NULL != x){
-			
-			ret = gen(op, x, (struct sem_rec *)NULL, x->s_mode);
-		}
-		else if(NULL != y){
-			ret = gen(op, y, (struct sem_rec *)NULL, y->s_mode);
-		}
-		else{
-			yyerror("Nullchar passed as op to set");	
-		}
-	}
-	else{
-
-		cast_y = y;
-		if((x->s_mode & T_DOUBLE) && !(y->s_mode & T_DOUBLE)){
-		
-			printf("t%d := cvf t%d\n", nexttemp(), y->s_place);
-			cast_y = node(currtemp(), T_DOUBLE, (struct sem_rec *) NULL, (struct sem_rec *) NULL);
-		}
-		else if((x->s_mode & T_INT) && !(y->s_mode & T_INT)){
-
-			printf("t%d := cvi t%d\n", nexttemp(), y->s_place);
-			cast_y = node(currtemp(), T_INT, (struct sem_rec *) NULL, (struct sem_rec *) NULL);
-			printf("t%d := t%d\n", nexttemp(), y->s_place);
-		}
-
-		// Print code for assignment
-		printf("t%d := t%d =%c t%d\n", nexttemp(), x->s_place, ((x->s_mode & T_INT)?'i':'f'), y->s_place);
-		
-		ret = (node(currtemp(), (x->s_mode&~(T_ARRAY)), (struct sem_rec *)NULL, (struct sem_rec *)NULL));
-	}
-
-	return ret;
-	*/
+		     (x->s_mode&~(T_ARRAY)),
+		     (struct sem_rec *)NULL,
+		     (struct sem_rec *)NULL)
+	);
 }
 
 
@@ -885,7 +886,6 @@ void startloopscope(){
 	
 	// Enter new scope for symbol table
 	enterblock();
-
 }
 
 
@@ -893,6 +893,7 @@ void startloopscope(){
  * string - generate code for a string
  */
 struct sem_rec *string(char *s){
+	
 	// Prepare a semantic record from the given string.
 	struct sem_rec *ret = node(nexttemp(), T_STR, (struct sem_rec *)NULL, (struct sem_rec *)NULL);	
 
@@ -909,6 +910,7 @@ struct sem_rec *string(char *s){
  * cast - force conversion of datum y to type t
  */
 struct sem_rec *cast(struct sem_rec *y, int t){
+	
 	if(t == T_DOUBLE && y->s_mode != T_DOUBLE){
 		return (gen("cv", (struct sem_rec *) NULL, y, t));
 	}
@@ -920,10 +922,29 @@ struct sem_rec *cast(struct sem_rec *y, int t){
 	}
 }
 
+
 /*
  * gen - generate and return quadruple "z := x op y"
+ *
+ * Would have been very nice to have instructions for this helper function.
+ * Not so much about what it does, but what you did and did not intend this to
+ * be used for.  The use was kind of inconsistent in the given code, and it
+ * might have been better to separate this into several helper functions that
+ * each handle one use pattern.
+ *
+ * As far as I understand it, we can use this one function for:
+ * 	args
+ * 	returns
+ * 	general binary operations
+ * 	making soup
+ *	certain unary operations
+ *	function calls
+ *	toasting marshmallows
+ *	the assignment of assignment operators
+ *	the operator of assignment operators
  */
 struct sem_rec *gen(char *op, struct sem_rec *x, struct sem_rec *y, int t){
+	
 	if(strncmp(op, "arg", 3) != 0 && strncmp(op, "ret", 3) != 0){
 		printf("t%d := ", nexttemp());
 	}
