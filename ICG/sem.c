@@ -745,32 +745,111 @@ struct sem_rec *rel(char *op, struct sem_rec *x, struct sem_rec *y){
  */
 struct sem_rec *set(char *op, struct sem_rec *x, struct sem_rec *y){
 	/* assign the value of expression y to the lval x */
-	struct sem_rec *p, *cast_y;
-
+	struct sem_rec *p, *cast_y, *p2;
+	
+	// Generate an intermediate temp if one of our operands was null, we
+	// need to dereference.
 	if(*op!='\0' || x==NULL || y==NULL){
-		return gen(op, x, cast(y, x->s_mode), x->s_mode);
+
+		// Print dereference statement
+		if(x->s_mode & T_INT){
+
+			// first needs to be null or it comes out backwards
+			p = gen("@", (struct sem_rec *)NULL, x, T_INT);
+
+			// Print casting if necessary
+			cast_y = cast(y, T_INT);
+		}
+		else{
+			p = gen("@", (struct sem_rec *)NULL, x, T_DOUBLE);
+			
+			// Print casting if necessary
+			cast_y = cast(y, T_DOUBLE);
+		}
+
+		// Print given operation statements (+ for +=, | for
+		// |=, etc)
+		p2 = gen(op, p, cast_y, cast_y->s_mode);
+
+		// Do the assignment
+		return gen("=", x, p2, cast_y->s_mode);
+			
+
+		//printf("t%d := @i t%d\n", nexttemp(), x->s_place);
+		//printf("t%d := t%d %si t%d\n", nexttemp(), currtemp(), op, y->s_place);
+		//gen(op, x, y, x->s_mode);
+		//printf("t%d := @f t%d\n", nexttemp(), x->s_place);
+		//printf("t%d := t%d %sf t%d\n", nexttemp(), currtemp(), op, y->s_place);
+		//gen(op, x, y, x->s_mode);			
 	}
 
 	/* if for type consistency of x and y */
 	cast_y = y;
 	if((x->s_mode & T_DOUBLE) && !(y->s_mode & T_DOUBLE)){
-	
 		/*cast y to a double*/
-		printf("t%d := cvf t%d\n", nexttemp(), y->s_place);
-		cast_y = node(currtemp(), T_DOUBLE, (struct sem_rec *) NULL, (struct sem_rec *) NULL);
+		printf("t%d = cvf t%d\n", nexttemp(), y->s_place);
+		cast_y = node(currtemp(), T_DOUBLE, (struct sem_rec *) NULL,(struct sem_rec *) NULL);
 	}
 	else if((x->s_mode & T_INT) && !(y->s_mode & T_INT)){
-
 		/*convert y to integer*/
-		printf("t%d := cvi t%d\n", nexttemp(), y->s_place);
+		printf("t%d = cvi t%d\n", nexttemp(), y->s_place);
 		cast_y = node(currtemp(), T_INT, (struct sem_rec *) NULL, (struct sem_rec *) NULL);
-		printf("t%d := t%d\n", nexttemp(), y->s_place);
 	}
 
-	// Print code for assignment
-	printf("t%d := t%d =%c t%d\n", nexttemp(), x->s_place, ((x->s_mode & T_INT)?'i':'f'), y->s_place);
+	/*output quad for assignment*/
+	if(x->s_mode & T_DOUBLE){
+		printf("t%d := t%d =f t%d\n", nexttemp(), x->s_place, cast_y->s_place);
+	}
+	else{
+		printf("t%d := t%d =i t%d\n", nexttemp(), x->s_place, cast_y->s_place);
+	}
+	
+	/*create a new node to allow just created temporary to be referenced later */
+	return(	node(currtemp(),
+		(x->s_mode&~(T_ARRAY)),
+		(struct sem_rec *)NULL,
+		(struct sem_rec *)NULL))
+	;
 
-	return (node(currtemp(), (x->s_mode&~(T_ARRAY)), (struct sem_rec *)NULL, (struct sem_rec *)NULL));
+	/*
+	struct sem_rec *p, *cast_y, *ret;
+
+	// if one or the other is null, just generate a node and be done
+	if(*op!='\0' || x==NULL || y==NULL){
+		if(NULL != x){
+			
+			ret = gen(op, x, (struct sem_rec *)NULL, x->s_mode);
+		}
+		else if(NULL != y){
+			ret = gen(op, y, (struct sem_rec *)NULL, y->s_mode);
+		}
+		else{
+			yyerror("Nullchar passed as op to set");	
+		}
+	}
+	else{
+
+		cast_y = y;
+		if((x->s_mode & T_DOUBLE) && !(y->s_mode & T_DOUBLE)){
+		
+			printf("t%d := cvf t%d\n", nexttemp(), y->s_place);
+			cast_y = node(currtemp(), T_DOUBLE, (struct sem_rec *) NULL, (struct sem_rec *) NULL);
+		}
+		else if((x->s_mode & T_INT) && !(y->s_mode & T_INT)){
+
+			printf("t%d := cvi t%d\n", nexttemp(), y->s_place);
+			cast_y = node(currtemp(), T_INT, (struct sem_rec *) NULL, (struct sem_rec *) NULL);
+			printf("t%d := t%d\n", nexttemp(), y->s_place);
+		}
+
+		// Print code for assignment
+		printf("t%d := t%d =%c t%d\n", nexttemp(), x->s_place, ((x->s_mode & T_INT)?'i':'f'), y->s_place);
+		
+		ret = (node(currtemp(), (x->s_mode&~(T_ARRAY)), (struct sem_rec *)NULL, (struct sem_rec *)NULL));
+	}
+
+	return ret;
+	*/
 }
 
 
