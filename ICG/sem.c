@@ -3,7 +3,9 @@
 # include "semutil.h"
 # include "sem.h"
 # include "sym.h"
+
 #include <string.h>
+#define MAXLOOPS 500
 // Tracks formal parameters and their types in the current scope level
 extern int formalnum;
 extern char formaltypes[];
@@ -17,6 +19,9 @@ extern int localwidths[];
 
 int numlabels = 0;                      /* total labels in file */
 int numblabels = 0;                     /* total backpatch labels in file */
+int numloops = 0;			// Track how many times we have looped
+struct sem_rec* loops[MAXLOOPS];	// Track n for patching
+
 
 /*
  * backpatch - backpatch list of quadruples starting at p with k
@@ -244,7 +249,28 @@ struct sem_rec *con(char *x){
  */
 void dobreak(){
 	// Jump out using nearest known endpoint label
-	n();
+	
+	// Print out intermediate code
+	numblabels++;
+	printf("br B%d\n", numblabels);
+
+	/*
+	 * We need to incorporate the falselist of the current
+	 * loop with the label we print.
+	 */
+	struct sem_rec *curr = loops[numloops]->s_false;
+
+	if(NULL != curr){
+		// The semantic record is a part of a list already.  Find the
+		// end.
+		while(NULL != curr->back.s_link){
+			curr = curr->back.s_link;
+		}
+	}
+	
+	// Make a new node for the label number generated above
+	curr = node(numblabels, 0, (struct sem_rec *)NULL, (struct sem_rec *)NULL);
+
 }
 
 
@@ -253,7 +279,28 @@ void dobreak(){
  */
 void docontinue(){
 	// Jump back to nearest known loop start label
-	m();
+	
+	// Print out intermediate code
+	numblabels++;
+	printf("br B%d\n", numblabels);
+
+	/*
+	 * We need to incorporate the truelist of the current
+	 * loop with the label we print.
+	 */
+	struct sem_rec *curr = loops[numloops]->back.s_true;
+
+	if(NULL != curr){
+		// The semantic record is a part of a list already.  Find the
+		// end.
+		while(NULL != curr->back.s_link){
+			curr = curr->back.s_link;
+		}
+	}
+	
+	// Make a new node for the label number generated above
+	curr = node(numblabels, 0, (struct sem_rec *)NULL, (struct sem_rec *)NULL);
+
 }
 
 /*
@@ -287,7 +334,17 @@ void dodo(int m1, int m2, struct sem_rec *e, int m3){
 	backpatch(e->back.s_true, m1);
 	backpatch(e->s_false, m3);
 
-	// TODO implement counting loops and an n() to backpatch to m2
+	/*
+	 * To track looping, we need to track the beginning and endpoint
+	 * targets for the loop clause.  This will allow access to each for
+	 * break and continue when we are not in this function.  We want to
+	 * use m2 to increment and start another loop, or m4 to kick out
+	 */
+	
+	backpatch(loops[numloops]->back.s_true, m2);
+
+	// Pass the endpoint target to endloopscope to let it clean up.
+	endloopscope(m3);
 }
 
 /*
@@ -324,7 +381,18 @@ void dofor(int m1, struct sem_rec *e2, int m2, struct sem_rec *n1, int m3,
 	backpatch(e2->s_false, m4);
 	backpatch(n1, m1);
 	backpatch(n2, m2);
-	endloopscope(1);
+
+	/*
+	 * To track looping, we need to track the beginning and endpoint
+	 * targets for the loop clause.  This will allow access to each for
+	 * break and continue when we are not in this function.  We want to
+	 * use m2 to increment and start another loop, or m4 to kick out
+	 */
+	
+	backpatch(loops[numloops]->back.s_true, m2);
+
+	// Pass the endpoint target to endloopscope to let it clean up.
+	endloopscope(m4);
 }
 
 /*
@@ -387,18 +455,32 @@ void dowhile(int m1, struct sem_rec *e, int m2, struct sem_rec *n,
 	// Update the end of the while loop with a jump back to the beginning
 	backpatch(n, m1);
 
+	// To track looping, need to set the current loop record to use the
+	// same target as n.  In this way, we can implement continue without
+	// direct access to m and n as given here.
+	backpatch(loops[numloops]->back.s_true, m1);
+
 	// Since this is the last thing done for the loop, and at this point
-	// everything is computed, adjust the scope
-	endloopscope(1);
+	// everything is computed, adjust the scope and pass in the endpoint 
+	endloopscope(m3);
 }
 
 /*
  * endloopscope - end the scope for a loop
  */
 void endloopscope(int m){
-	for(int i = 0; i<m; ++i){
-		leaveblock();
-	}
+	/*
+	 * Now, we need to clean up the looping tracking.  First, patch in the
+	 * given m, such that it will jump to the endpoint.  Then, set the
+	 * current loop pointer to NULL and decrement the loop counter
+	 */
+	
+	backpatch(loops[numloops]->s_false, m);
+	loops[numloops] = NULL;
+	numloops--;
+
+	// Close scope in symbol tablew
+	leaveblock();
 }
 
 /*
@@ -696,7 +778,35 @@ struct sem_rec *set(char *op, struct sem_rec *x, struct sem_rec *y){
  * startloopscope - start the scope for a loop
  */
 void startloopscope(){
+
+	// This is always called for a dowhile, while, or for statement.  Thus
+	// we can use this to begin counting loops.  From the grammar, we can
+	// see that in general, s will occur before at the beginning of the
+	// clause.
+
+	/* For breaks and continues, we need to track either the endpoint or
+	 * the beginning of the conditional/clause so we have a point of
+	 * reference to jump to.  However, this could happen many times over,
+	 * so we need to extract the appropriate line to jump to.
+	 *
+	 * If we count loops as they are entered, we can chain together
+	 * semantic records with the appropriate m and n targets for the given
+	 * level of looping.  So long as we clean up at the end, we then
+	 * always have a record of the appropriate line to jump to.
+	 */
+	
+	// increment loop count
+	numloops++;
+
+	// Create a new node to jump to
+	struct sem_rec * curr = node(0, 0, (struct sem_rec *)NULL, (struct sem_rec *)NULL);
+
+	// Track it in our array
+	loops[numloops] = curr;
+	
+	// Enter new scope for symbol table
 	enterblock();
+
 }
 
 
