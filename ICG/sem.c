@@ -828,12 +828,12 @@ struct sem_rec *set(char *op, struct sem_rec *x, struct sem_rec *y){
 	cast_y = y;
 	if((x->s_mode & T_DOUBLE) && !(y->s_mode & T_DOUBLE)){
 		/*cast y to a double*/
-		printf("t%d = cvf t%d\n", nexttemp(), y->s_place);
+		printf("t%d := cvf t%d\n", nexttemp(), y->s_place);
 		cast_y = node(currtemp(), T_DOUBLE, (struct sem_rec *) NULL,(struct sem_rec *) NULL);
 	}
 	else if((x->s_mode & T_INT) && !(y->s_mode & T_INT)){
 		/*convert y to integer*/
-		printf("t%d = cvi t%d\n", nexttemp(), y->s_place);
+		printf("t%d := cvi t%d\n", nexttemp(), y->s_place);
 		cast_y = node(currtemp(), T_INT, (struct sem_rec *) NULL, (struct sem_rec *) NULL);
 	}
 
@@ -898,7 +898,7 @@ struct sem_rec *string(char *s){
 	struct sem_rec *ret = node(nexttemp(), T_STR, (struct sem_rec *)NULL, (struct sem_rec *)NULL);	
 
 	// Print the intermediate code
-	printf("t%d := \"%s\"\n", ret->s_place, s);
+	printf("t%d := %s\n", ret->s_place, s);
 
 	return ret;
 }
