@@ -39,14 +39,20 @@ except OSError as err:
 for f in files:
     command = "./sem_base.exe < {} > {}".format(os.path.join(TESTDIR, f),
                                                 os.path.join(EXP_OUT, "{}.out".format(f)))
-    os.system(command)
-
-    command = "./csem < {} > {}".format(os.path.join(TESTDIR, f),
+    command2 = "./csem < {} > {}".format(os.path.join(TESTDIR, f),
                                                 os.path.join(RES_OUT, "{}.out".format(f)))
-    os.system(command)
-
-    print("=============================================================\nFILE {}\n=============================================================\n".format(f))
-    command = "diff {} {}".format(os.path.join(EXP_OUT, "{}.out".format(f)),
+    command3 = "diff {} {}".format(os.path.join(EXP_OUT, "{}.out".format(f)),
                                   os.path.join(RES_OUT, "{}.out".format(f)))
-    os.system(command)
-    print("\n")
+    r1 = os.system(command)
+    
+    r2 = os.system(command2)
+    
+    if(r1+r2 > 0):
+        print("Error:\n\tCall {} returned {}\n\tCall {} returned {}\n".format(command, r1, command2, r2))
+        print("File in question: {}".format(f))
+
+    else:
+        print("=============================================================\nFILE {}\n=============================================================\n".format(f))
+        print("\n")
+        r3 = os.system(command3)
+
