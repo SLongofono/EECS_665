@@ -19,3 +19,4 @@ y.tab.h cgram.c: cgram.y
 
 clean:
 	rm csem sym.o scan.o sem.o semutil.o cgram.o
+	rm -r results expected
