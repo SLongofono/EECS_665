@@ -34,6 +34,10 @@ int numblabels = 0;                     /* total backpatch labels in file */
 int numloops = 0;			// Track how many times we have looped
 struct sem_rec* loops[MAXLOOPS];	// Track n for patching
 
+int infunc = 0;				// If we are in a function, we need to track the type
+					// to handle implicit returns of
+					// doubles
+int functype = 0;			
 
 /*
  * backpatch - backpatch list of quadruples starting at p with k
@@ -101,31 +105,20 @@ struct sem_rec *call(char *f, struct sem_rec *args){
 	struct id_entry *p;
 
 	if((p = lookup(f, 0)) == NULL){
-		return (struct sem_rec *)NULL;
-		/*
-		 * Just kidding, we were assured correct input.  report and
-		 * carry on
-		 *
-		p = install(f, -1);
+		printf("NOPE\n");
+		p = install(f, 0);
 		p->i_type = T_PROC;
 		// Per stackexchange, C cannot have local functions.  They may
 		// be forward declared and used within a function, but
 		// otherwise they should eb global to the file.
 		p->i_scope = GLOBAL;
 		p->i_defined = 1;
-
-		// Now, actually declare the function
-		fname
-
-		*/
 	}
 	
 	// At this point, we have a valid entry
-	
+
 	// Name the global identifier
 	printf("t%d := global %s\n", nexttemp(), f);
-
-	char temp[1] = {'f'};
 
 	/*
 	 * Use gen to print out the call
@@ -135,7 +128,8 @@ struct sem_rec *call(char *f, struct sem_rec *args){
 	 * number of args, and the type associated with this function from the
 	 * symbol table.
 	 */
-	return gen(temp,
+
+	return gen("f",
 		   node(currtemp(), 0, (struct sem_rec *)NULL, (struct sem_rec *)NULL),
 		   node(numargs, 0, (struct sem_rec *)NULL, (struct sem_rec *)NULL),
 		   p->i_type);
@@ -472,9 +466,20 @@ void doifelse(struct sem_rec *e, int m1, struct sem_rec *n,
  * 
  */
 void doret(struct sem_rec *e){
-
-	// Pass firs record as null to catch return case properly
-	gen("ret", (struct sem_rec *)NULL, e,  e->s_mode);
+	if(NULL != e){
+		// Pass first record as null to catch return case properly
+		gen("ret", (struct sem_rec *)NULL, e,  e->s_mode);
+	}
+	else{
+		// If there is no return, use the function type to print
+		// return properly
+		if(functype & T_DOUBLE){
+			printf("retf\n");
+		}
+		else{
+			printf("reti\n");
+		}
+	}
 }
 
 
@@ -582,17 +587,19 @@ void fhead(struct id_entry *p){
  * fname - function declaration
  */
 struct id_entry *fname(int t, char *id){
-
 	// Width is byte width of the return
 	int width;
+	infunc = 1;
 	switch(t){
 		case T_INT:
 			width = 4;
+			functype = T_INT;
 			break;
 		default:
 			// Everything else is system address length, including
 			// doubles
 			width = 8;
+			functype = T_DOUBLE;
 	}
 
 	// Print out the intermediate code
@@ -606,14 +613,18 @@ struct id_entry *fname(int t, char *id){
 	// type t, the name id, and the width.
 	struct id_entry * ret = dclr(id, t, width);
 
+
 	// Create a new scope for the function
 	enterblock();
 	
 
 	if(NULL != ret){
-		return ret;	
+		return ret;
 	}
+	
 	yyerror("function declaration returned null");
+	
+	return (struct id_entry *) NULL;
 }
 
 
@@ -627,6 +638,7 @@ void ftail(){
 	
 	// Leave function scope
 	leaveblock();
+	infunc = 0;
 }
 
 
@@ -744,6 +756,13 @@ struct sem_rec *op1(char *op, struct sem_rec *y){
  */
 struct sem_rec *op2(char *op, struct sem_rec *x, struct sem_rec *y){
 
+	if(x->s_mode & T_DOUBLE && y->s_mode & T_INT){
+		y = cast(y, x->s_mode);
+	}
+	else if (x->s_mode & T_INT && y->s_mode & T_DOUBLE){
+		x = cast(x, y->s_mode);
+	}
+
 	if(NULL != x){
 		return gen(op,x,y,y->s_mode);
 	}
@@ -757,6 +776,13 @@ struct sem_rec *op2(char *op, struct sem_rec *x, struct sem_rec *y){
  * opb - bitwise operators
  */
 struct sem_rec *opb(char *op, struct sem_rec *x, struct sem_rec *y){
+
+	if(x->s_mode & T_DOUBLE && y->s_mode & T_INT){
+		y = cast(y, x->s_mode);
+	}
+	else if (x->s_mode & T_INT && y->s_mode & T_DOUBLE){
+		x = cast(x, y->s_mode);
+	}
 	
 	if(NULL != x){
 		return gen(op,x,y,y->s_mode);
@@ -771,8 +797,15 @@ struct sem_rec *opb(char *op, struct sem_rec *x, struct sem_rec *y){
  * rel - relational operators
  */
 struct sem_rec *rel(char *op, struct sem_rec *x, struct sem_rec *y){
-	
-	struct sem_rec *ret = gen(op, x, cast(y, x->s_mode), x->s_mode);
+
+	if(x->s_mode & T_DOUBLE && y->s_mode & T_INT){
+		y = cast(y, x->s_mode);
+	}
+	else if (x->s_mode & T_INT && y->s_mode & T_DOUBLE){
+		x = cast(x, y->s_mode);
+	}
+		
+	struct sem_rec *ret = gen(op, x, y,y->s_mode);
 
 	// Need to generate the branches to be taken for this
 	// condition per the grammar 6.43
