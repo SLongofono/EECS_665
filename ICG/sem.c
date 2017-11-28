@@ -39,6 +39,8 @@ int infunc = 0;				// If we are in a function, we need to track the type
 					// doubles
 int functype = 0;			
 
+void deepcopy(struct sem_rec *, struct sem_rec *);	// Local helper
+
 /*
  * backpatch - backpatch list of quadruples starting at p with k
  */
@@ -69,7 +71,6 @@ void backpatch(struct sem_rec *p, int k){
  */
 void bgnstmt(){
 
-	// TODO Figure out what the f is wrong with this...
 	extern int lineno;
 	printf("bgnstmt %d\n", lineno);
 }
@@ -86,6 +87,8 @@ struct sem_rec *call(char *f, struct sem_rec *args){
 	int numargs = 0;
 
 	while(NULL != curr){
+		gen("arg", (struct sem_rec *)NULL, curr, curr->s_mode);
+		/*
 		switch(curr->s_mode){
 			case T_INT:
 				printf("argi t%d\n", curr->s_place);
@@ -97,6 +100,7 @@ struct sem_rec *call(char *f, struct sem_rec *args){
 				printf("arg t%d\n", curr->s_place);
 				break;
 		}
+		*/
 		numargs++;
 		curr = curr->back.s_link;
 	}
@@ -105,7 +109,6 @@ struct sem_rec *call(char *f, struct sem_rec *args){
 	struct id_entry *p;
 
 	if((p = lookup(f, 0)) == NULL){
-		printf("NOPE\n");
 		p = install(f, 0);
 		p->i_type = T_PROC;
 		// Per stackexchange, C cannot have local functions.  They may
@@ -755,13 +758,19 @@ struct sem_rec *op1(char *op, struct sem_rec *y){
  * op2 - arithmetic operators
  */
 struct sem_rec *op2(char *op, struct sem_rec *x, struct sem_rec *y){
+	
+	struct sem_rec *p;
 
 	if(x->s_mode & T_DOUBLE && y->s_mode & T_INT){
-		y = cast(y, x->s_mode);
+		p = cast(y, x->s_mode);
+		deepcopy(p,y);
 	}
 	else if (x->s_mode & T_INT && y->s_mode & T_DOUBLE){
-		x = cast(x, y->s_mode);
+		p = cast(x, y->s_mode);
+		deepcopy(p,x);
 	}
+
+
 
 	if(NULL != x){
 		return gen(op,x,y,y->s_mode);
@@ -777,13 +786,17 @@ struct sem_rec *op2(char *op, struct sem_rec *x, struct sem_rec *y){
  */
 struct sem_rec *opb(char *op, struct sem_rec *x, struct sem_rec *y){
 
+	struct sem_rec *p;
+
 	if(x->s_mode & T_DOUBLE && y->s_mode & T_INT){
-		y = cast(y, x->s_mode);
+		p = cast(y, x->s_mode);
+		deepcopy(p,y);
 	}
 	else if (x->s_mode & T_INT && y->s_mode & T_DOUBLE){
-		x = cast(x, y->s_mode);
+		p = cast(x, y->s_mode);
+		deepcopy(p,x);
 	}
-	
+
 	if(NULL != x){
 		return gen(op,x,y,y->s_mode);
 	}
@@ -792,19 +805,24 @@ struct sem_rec *opb(char *op, struct sem_rec *x, struct sem_rec *y){
 	}
 }
 
-
+// TODO need to be able to handle conversions in both directions.  However, we
+// can't overwrite 
 /*
  * rel - relational operators
  */
 struct sem_rec *rel(char *op, struct sem_rec *x, struct sem_rec *y){
 
+	struct sem_rec *p;
+
 	if(x->s_mode & T_DOUBLE && y->s_mode & T_INT){
-		y = cast(y, x->s_mode);
+		p = cast(y, x->s_mode);
+		deepcopy(p,y);
 	}
 	else if (x->s_mode & T_INT && y->s_mode & T_DOUBLE){
-		x = cast(x, y->s_mode);
+		p = cast(x, y->s_mode);
+		deepcopy(p,x);
 	}
-		
+
 	struct sem_rec *ret = gen(op, x, y,y->s_mode);
 
 	// Need to generate the branches to be taken for this
@@ -1002,4 +1020,11 @@ struct sem_rec *gen(char *op, struct sem_rec *x, struct sem_rec *y, int t){
 	}
 	printf("\n");
 	return (node(currtemp(), t, (struct sem_rec *) NULL, (struct sem_rec *) NULL));
+}
+
+void deepcopy(struct sem_rec *src, struct sem_rec* dest){
+	dest->s_place = src->s_place;
+	dest->s_mode = src->s_mode;
+	dest->back.s_link = src->back.s_link;
+	dest->s_false = src->s_false;
 }
