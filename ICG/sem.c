@@ -88,19 +88,6 @@ struct sem_rec *call(char *f, struct sem_rec *args){
 
 	while(NULL != curr){
 		gen("arg", (struct sem_rec *)NULL, curr, curr->s_mode);
-		/*
-		switch(curr->s_mode){
-			case T_INT:
-				printf("argi t%d\n", curr->s_place);
-				break;
-			case T_DOUBLE:
-				printf("argf t%d\n", curr->s_place);
-				break;
-			default:
-				printf("arg t%d\n", curr->s_place);
-				break;
-		}
-		*/
 		numargs++;
 		curr = curr->back.s_link;
 	}
@@ -220,6 +207,7 @@ struct sem_rec *ccexpr(struct sem_rec *e){
 		fprintf(stderr, "Argument sem_rec is NULL\n");
 	}
 }
+
 
 /*
  * ccnot - logical not
@@ -760,19 +748,15 @@ struct sem_rec *op1(char *op, struct sem_rec *y){
 struct sem_rec *op2(char *op, struct sem_rec *x, struct sem_rec *y){
 	
 	struct sem_rec *p;
-
-	if(x->s_mode & T_DOUBLE && y->s_mode & T_INT){
-		p = cast(y, x->s_mode);
-		deepcopy(p,y);
-	}
-	else if (x->s_mode & T_INT && y->s_mode & T_DOUBLE){
-		p = cast(x, y->s_mode);
-		deepcopy(p,x);
-	}
-
-
-
 	if(NULL != x){
+		if(x->s_mode & T_DOUBLE && y->s_mode & T_INT){
+			p = cast(y, x->s_mode);
+			deepcopy(p,y);
+		}
+		else if (x->s_mode & T_INT && y->s_mode & T_DOUBLE){
+			p = cast(x, y->s_mode);
+			deepcopy(p,x);
+		}
 		return gen(op,x,y,y->s_mode);
 	}
 	else{
@@ -788,16 +772,16 @@ struct sem_rec *opb(char *op, struct sem_rec *x, struct sem_rec *y){
 
 	struct sem_rec *p;
 
-	if(x->s_mode & T_DOUBLE && y->s_mode & T_INT){
-		p = cast(y, x->s_mode);
-		deepcopy(p,y);
-	}
-	else if (x->s_mode & T_INT && y->s_mode & T_DOUBLE){
-		p = cast(x, y->s_mode);
-		deepcopy(p,x);
-	}
-
 	if(NULL != x){
+		if(x->s_mode & T_DOUBLE && y->s_mode & T_INT){
+			p = cast(y, x->s_mode);
+			deepcopy(p,y);
+		}
+		else if (x->s_mode & T_INT && y->s_mode & T_DOUBLE){
+			p = cast(x, y->s_mode);
+			deepcopy(p,x);
+		}
+
 		return gen(op,x,y,y->s_mode);
 	}
 	else{
@@ -805,8 +789,7 @@ struct sem_rec *opb(char *op, struct sem_rec *x, struct sem_rec *y){
 	}
 }
 
-// TODO need to be able to handle conversions in both directions.  However, we
-// can't overwrite 
+
 /*
  * rel - relational operators
  */
