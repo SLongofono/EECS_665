@@ -34,6 +34,7 @@ except OSError as err:
     if err.errno != errno.EEXIST:
         raise
 
+files = sorted(files)
 
 # Run tests and save outputs
 for f in files:
