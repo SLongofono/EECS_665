@@ -426,7 +426,7 @@ void dogoto(char *id){
  * doif - one-arm if statement
  */
 void doif(struct sem_rec *e, int m1, int m2){
-	
+
 	// Update the true label to jump into the then clause
 	backpatch(e->back.s_true, m1);
 	
@@ -682,13 +682,13 @@ struct sem_rec *tom_index(struct sem_rec *x, struct sem_rec *i){
  * labeldcl - process a label declaration
  */
 void labeldcl(char *id){
-
 	// Cue the lookup table to install an id (or error out)
 	slookup(id);
-
+	
 	// Make a new local label
 	numlabels++;
 	printf("label L%d\n", numlabels);
+	
 }
 
 
@@ -702,6 +702,7 @@ int m(){
 	 * any branching construct.  For each, we need a unique number to
 	 * refer to it by, which we track with the global numlabels.
 	 */
+
 	numlabels++;
 	printf("label L%d\n", numlabels);
 	return numlabels;
@@ -721,7 +722,7 @@ struct sem_rec *n(){
 	// Print the goto as an unconditional branch
 	numblabels++;
 	printf("br B%d\n", numblabels);
-	return node(numblabels, T_INT, (struct sem_rec *)NULL, (struct sem_rec *)NULL);
+	return node(numblabels, 0, (struct sem_rec *)NULL, (struct sem_rec *)NULL);
 }
 
 
@@ -812,11 +813,12 @@ struct sem_rec *rel(char *op, struct sem_rec *x, struct sem_rec *y){
 	// condition per the grammar 6.43
 	numblabels++;
 	printf("bt t%d B%d\n", currtemp(), numblabels);
-	numblabels++;
-	printf("br B%d\n", numblabels);
 	ret->back.s_true = node(numblabels-1, x->s_mode, (struct sem_rec *)NULL, (struct sem_rec *)NULL);
+	
+	numblabels++;
 	ret->s_false = node(numblabels, x->s_mode, (struct sem_rec *)NULL, (struct sem_rec *)NULL);
-
+	printf("br B%d\n", numblabels);
+	
 	return ret;
 }
 
