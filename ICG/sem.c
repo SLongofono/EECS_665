@@ -40,6 +40,8 @@ int infunc = 0;				// If we are in a function, we need to track the type
 int functype = 0;			
 
 void deepcopy(struct sem_rec *, struct sem_rec *);	// Local helper
+int is_bitwise(char *op);				// local helper
+
 
 /*
  * backpatch - backpatch list of quadruples starting at p with k
@@ -195,8 +197,10 @@ struct sem_rec *ccexpr(struct sem_rec *e){
 		 * branch.
 		 */
 		t1 = gen("!=", e, cast(con("0"), e->s_mode), e->s_mode);
-		printf("bt t%d B%d\n", t1->s_place, ++numblabels);
-		printf("br B%d\n", ++numblabels);
+		numblabels++;
+		printf("bt t%d B%d\n", t1->s_place, numblabels);
+		numblabels++;
+		printf("br B%d\n", numblabels);
 		return 	node(0,
 			     0,
 			     node(numblabels-1, 0, (struct sem_rec *) NULL, (struct sem_rec *) NULL),
@@ -773,20 +777,12 @@ struct sem_rec *opb(char *op, struct sem_rec *x, struct sem_rec *y){
 
 	struct sem_rec *p;
 
-	if(NULL != x){
-		if(x->s_mode & T_DOUBLE && y->s_mode & T_INT){
-			p = cast(y, x->s_mode);
-			deepcopy(p,y);
-		}
-		else if (x->s_mode & T_INT && y->s_mode & T_DOUBLE){
-			p = cast(x, y->s_mode);
-			deepcopy(p,x);
-		}
-
-		return gen(op,x,y,y->s_mode);
+	if(x->s_mode & T_DOUBLE || y->s_mode & T_DOUBLE){
+		yyerror("Double operands with bitwise operator");
+		return ((struct sem_rec *) NULL);
 	}
 	else{
-		return ((struct sem_rec *) NULL);
+		return gen(op,x,y,T_INT);
 	}
 }
 
@@ -797,7 +793,6 @@ struct sem_rec *opb(char *op, struct sem_rec *x, struct sem_rec *y){
 struct sem_rec *rel(char *op, struct sem_rec *x, struct sem_rec *y){
 
 	struct sem_rec *p;
-
 	if(x->s_mode & T_DOUBLE && y->s_mode & T_INT){
 		p = cast(y, x->s_mode);
 		deepcopy(p,y);
@@ -813,7 +808,7 @@ struct sem_rec *rel(char *op, struct sem_rec *x, struct sem_rec *y){
 	// condition per the grammar 6.43
 	numblabels++;
 	printf("bt t%d B%d\n", currtemp(), numblabels);
-	ret->back.s_true = node(numblabels-1, x->s_mode, (struct sem_rec *)NULL, (struct sem_rec *)NULL);
+	ret->back.s_true = node(numblabels, x->s_mode, (struct sem_rec *)NULL, (struct sem_rec *)NULL);
 	
 	numblabels++;
 	ret->s_false = node(numblabels, x->s_mode, (struct sem_rec *)NULL, (struct sem_rec *)NULL);
@@ -1006,6 +1001,25 @@ struct sem_rec *gen(char *op, struct sem_rec *x, struct sem_rec *y, int t){
 	printf("\n");
 	return (node(currtemp(), t, (struct sem_rec *) NULL, (struct sem_rec *) NULL));
 }
+
+
+int is_bitwise(char *op){
+	if(
+		(strncmp(op, "|", 1) == 0) ||
+		(strncmp(op, "^", 1) == 0) ||
+		(strncmp(op, "&", 1) == 0) ||
+		(strncmp(op, "<<", 2) == 0) ||
+		(strncmp(op, ">>", 2) == 0) ||
+		(strncmp(op, "~", 1) == 0)
+
+	){
+		printf("%s is bitwise!\n", op);
+		return 1;	
+	}
+	printf("%s is not bitwise!\n", op);
+	return 0;
+}
+
 
 void deepcopy(struct sem_rec *src, struct sem_rec* dest){
 	dest->s_place = src->s_place;
