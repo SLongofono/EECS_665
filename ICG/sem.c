@@ -197,7 +197,6 @@ struct sem_rec *ccexpr(struct sem_rec *e){
 		 */
 
 		int realtype = e->s_mode &~ T_ADDR;
-		//printf("GIVEN TYPE: %d, REAL: %d\n", e->s_mode, realtype);
 		t1 = gen("!=", e, cast(con("0"), realtype), realtype);
 		numblabels++;
 		printf("bt t%d B%d\n", t1->s_place, numblabels);
@@ -838,19 +837,9 @@ struct sem_rec *set(char *op, struct sem_rec *x, struct sem_rec *y){
 	// need to dereference.
 	if(*op!='\0' || x==NULL || y==NULL){
 	
-		/*
-		printf("\n\nType X: %d\nType Y: %d\n\n", x->s_mode, y->s_mode);
-		printf("X and not T_ADDR: %d\n", x->s_place &~T_ADDR);
-		printf("X and not T_ARRAY: %d\n", x->s_place &~T_ARRAY);
-		printf("X and not T_ADDR and not T_ARRAY: %d\n", x->s_place &~T_ADDR &~T_ADDR);
-		*/
 		int realtypex = x->s_mode & ~T_ADDR;
 		int realtypey = y->s_mode & ~T_ADDR;
-		//printf("TYPE X: %d\n", realtypex);
-		//printf("TYPE Y: %d\n", realtypey);
-		//printf("%d", realtypex & T_INT);
-		//printf("%d", realtypex & T_DOUBLE);
-
+		
 		// Print dereference statement	
 		if(1 == realtypex){
 			// first needs to be null or it comes out backwards
@@ -902,15 +891,7 @@ struct sem_rec *set(char *op, struct sem_rec *x, struct sem_rec *y){
 
 		int realtypex = x->s_mode & ~T_ADDR;
 		int realtypey = y->s_mode & ~T_ADDR;
-
-		/*
-		printf("\n\nType X: %d\nType Y: %d\n\n", x->s_mode, y->s_mode);
-		printf("X - T_ADDR: %d\n", x->s_place -T_ADDR);
-		printf("X - T_ARRAY: %d\n", x->s_place -T_ARRAY);
-		printf("X and not T_ADDR and not T_ARRAY: %d\n", x->s_place &~T_ADDR &~T_ADDR);
-		printf("X DEREFERENCED: %d\n", realtypex);
-		*/
-
+		
 		if((x->s_mode & T_DOUBLE) && !(y->s_mode & T_DOUBLE)){
 			//cast y to a double
 			//printf("t%d := cvf t%d\n", nexttemp(), y->s_place);
@@ -1015,7 +996,7 @@ struct sem_rec *cast(struct sem_rec *y, int t){
  * gen - generate and return quadruple "z := x op y"
  *
  * Would have been very nice to have instructions for this helper function.
- * Not so much about what it does, but what you did and did not intend this to
+ * Not so much about what it does, or what you did and did not intend this to
  * be used for.  The use was kind of inconsistent in the given code, and it
  * might have been better to separate this into several helper functions that
  * each handle one use pattern.
