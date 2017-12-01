@@ -195,7 +195,10 @@ struct sem_rec *ccexpr(struct sem_rec *e){
 		 * condition true record and the false list as the second
 		 * branch.
 		 */
-		t1 = gen("!=", e, cast(con("0"), e->s_mode), e->s_mode);
+
+		int realtype = e->s_mode &~ T_ADDR;
+		//printf("GIVEN TYPE: %d, REAL: %d\n", e->s_mode, realtype);
+		t1 = gen("!=", e, cast(con("0"), realtype), realtype);
 		numblabels++;
 		printf("bt t%d B%d\n", t1->s_place, numblabels);
 		numblabels++;
@@ -791,12 +794,17 @@ struct sem_rec *opb(char *op, struct sem_rec *x, struct sem_rec *y){
  */
 struct sem_rec *rel(char *op, struct sem_rec *x, struct sem_rec *y){
 
+	int realtypex = x->s_mode & ~T_ADDR;
+	int realtypey = y->s_mode & ~T_ADDR;
+
 	struct sem_rec *p;
-	if(x->s_mode & T_DOUBLE && y->s_mode & T_INT){
+	//if(x->s_mode & T_DOUBLE && y->s_mode & T_INT){
+	if(realtypex > realtypey){
 		p = cast(y, x->s_mode);
 		deepcopy(p,y);
 	}
-	else if (x->s_mode & T_INT && y->s_mode & T_DOUBLE){
+	//else if (x->s_mode & T_INT && y->s_mode & T_DOUBLE){
+	else if(realtypey > realtypex){
 		p = cast(x, y->s_mode);
 		deepcopy(p,x);
 	}

@@ -8,6 +8,5 @@ int foo(){
 	if(f1 >= i1){}
 	if(f1 < i1){}
 	if(f1 <= i1){}
-	if(f1 | i1){}
 	if(f1 = i1){}
 }
