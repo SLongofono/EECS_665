@@ -755,11 +755,11 @@ struct sem_rec *op2(char *op, struct sem_rec *x, struct sem_rec *y){
 	if(NULL != x){
 		if(x->s_mode & T_DOUBLE && y->s_mode & T_INT){
 			p = cast(y, x->s_mode);
-			deepcopy(y,p);
+			deepcopy(p,y);
 		}
 		else if (x->s_mode & T_INT && y->s_mode & T_DOUBLE){
 			p = cast(x, y->s_mode);
-			deepcopy(x,p);
+			deepcopy(p,x);
 		}
 		return gen(op,x,y,y->s_mode);
 	}
@@ -794,11 +794,11 @@ struct sem_rec *rel(char *op, struct sem_rec *x, struct sem_rec *y){
 	struct sem_rec *p;
 	if(x->s_mode & T_DOUBLE && y->s_mode & T_INT){
 		p = cast(y, x->s_mode);
-		deepcopy(y,p);
+		deepcopy(p,y);
 	}
 	else if (x->s_mode & T_INT && y->s_mode & T_DOUBLE){
 		p = cast(x, y->s_mode);
-		deepcopy(x,p);
+		deepcopy(p,x);
 	}
 
 	struct sem_rec *ret = gen(op, x, y,y->s_mode);
@@ -825,10 +825,47 @@ struct sem_rec *set(char *op, struct sem_rec *x, struct sem_rec *y){
 	/* assign the value of expression y to the lval x */
 	struct sem_rec *p, *cast_y, *p2;
 	
+	
 	// Generate an intermediate temp if one of our operands was null, we
 	// need to dereference.
 	if(*op!='\0' || x==NULL || y==NULL){
+	
+		/*
+		printf("\n\nType X: %d\nType Y: %d\n\n", x->s_mode, y->s_mode);
+		printf("X and not T_ADDR: %d\n", x->s_place &~T_ADDR);
+		printf("X and not T_ARRAY: %d\n", x->s_place &~T_ARRAY);
+		printf("X and not T_ADDR and not T_ARRAY: %d\n", x->s_place &~T_ADDR &~T_ADDR);
+		*/
+		int realtypex = x->s_mode & ~T_ADDR;
+		int realtypey = y->s_mode & ~T_ADDR;
+		//printf("TYPE X: %d\n", realtypex);
+		//printf("TYPE Y: %d\n", realtypey);
+		//printf("%d", realtypex & T_INT);
+		//printf("%d", realtypex & T_DOUBLE);
+
+		// Print dereference statement	
+		if(1 == realtypex){
+			// first needs to be null or it comes out backwards
+			p = gen("@", (struct sem_rec *)NULL, x, T_INT);
+			
+			// Print casting if necessary
+			cast_y = cast(y, T_INT);
+		}
+		else{
+			p = gen("@", (struct sem_rec *)NULL, x, T_DOUBLE);
+			
+			// Print casting if necessary
+			cast_y = cast(y, T_DOUBLE);
+		}
 		
+		// Print given operation statements (+ for +=, | for
+		// |=, etc)
+		p2 = gen(op, p, cast_y, cast_y->s_mode);
+		
+		// Do the assignment
+		return gen("=", x, p2, cast_y->s_mode);
+
+		/*
 		p = op1("@", x);
 
 		// Print dereference statement
@@ -848,11 +885,23 @@ struct sem_rec *set(char *op, struct sem_rec *x, struct sem_rec *y){
 
 		// Do the assignment
 		printf("t%d := t%d =%c t%d\n", nexttemp(), x->s_place, (p->s_mode & T_INT ? 'i':'f'), cast_y->s_place);
+		*/
 	}
 	else{
-		/* type consistency of x and y */
-	
+		//type consistency of x and y
+			
 		cast_y = y;
+
+		int realtypex = x->s_mode & ~T_ADDR;
+		int realtypey = y->s_mode & ~T_ADDR;
+
+		/*
+		printf("\n\nType X: %d\nType Y: %d\n\n", x->s_mode, y->s_mode);
+		printf("X - T_ADDR: %d\n", x->s_place -T_ADDR);
+		printf("X - T_ARRAY: %d\n", x->s_place -T_ARRAY);
+		printf("X and not T_ADDR and not T_ARRAY: %d\n", x->s_place &~T_ADDR &~T_ADDR);
+		printf("X DEREFERENCED: %d\n", realtypex);
+		*/
 
 		if((x->s_mode & T_DOUBLE) && !(y->s_mode & T_DOUBLE)){
 			//cast y to a double
@@ -868,11 +917,11 @@ struct sem_rec *set(char *op, struct sem_rec *x, struct sem_rec *y){
 		}
 
 		/*output quad for assignment*/
-		if(x->s_mode & T_DOUBLE){
-			printf("t%d := t%d =f t%d\n", nexttemp(), x->s_place, cast_y->s_place);
+		if((x->s_mode &~ T_ARRAY)& T_INT){
+			printf("t%d := t%d =i t%d\n", nexttemp(), x->s_place, cast_y->s_place);
 		}
 		else{
-			printf("t%d := t%d =i t%d\n", nexttemp(), x->s_place, cast_y->s_place);
+			printf("t%d := t%d =f t%d\n", nexttemp(), x->s_place, cast_y->s_place);
 		}
 	}
 
