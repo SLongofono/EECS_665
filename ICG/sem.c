@@ -40,7 +40,6 @@ int infunc = 0;				// If we are in a function, we need to track the type
 int functype = 0;			
 
 void deepcopy(struct sem_rec *, struct sem_rec *);	// Local helper
-int is_bitwise(char *op);				// local helper
 
 
 /*
@@ -756,11 +755,11 @@ struct sem_rec *op2(char *op, struct sem_rec *x, struct sem_rec *y){
 	if(NULL != x){
 		if(x->s_mode & T_DOUBLE && y->s_mode & T_INT){
 			p = cast(y, x->s_mode);
-			deepcopy(p,y);
+			deepcopy(y,p);
 		}
 		else if (x->s_mode & T_INT && y->s_mode & T_DOUBLE){
 			p = cast(x, y->s_mode);
-			deepcopy(p,x);
+			deepcopy(x,p);
 		}
 		return gen(op,x,y,y->s_mode);
 	}
@@ -795,11 +794,11 @@ struct sem_rec *rel(char *op, struct sem_rec *x, struct sem_rec *y){
 	struct sem_rec *p;
 	if(x->s_mode & T_DOUBLE && y->s_mode & T_INT){
 		p = cast(y, x->s_mode);
-		deepcopy(p,y);
+		deepcopy(y,p);
 	}
 	else if (x->s_mode & T_INT && y->s_mode & T_DOUBLE){
 		p = cast(x, y->s_mode);
-		deepcopy(p,x);
+		deepcopy(x,p);
 	}
 
 	struct sem_rec *ret = gen(op, x, y,y->s_mode);
@@ -829,19 +828,16 @@ struct sem_rec *set(char *op, struct sem_rec *x, struct sem_rec *y){
 	// Generate an intermediate temp if one of our operands was null, we
 	// need to dereference.
 	if(*op!='\0' || x==NULL || y==NULL){
+		
+		p = op1("@", x);
 
 		// Print dereference statement
-		if(x->s_mode & T_INT){
-
-			// first needs to be null or it comes out backwards
-			p = gen("@", (struct sem_rec *)NULL, x, T_INT);
+		if(p->s_mode & T_INT){
 
 			// Print casting if necessary
 			cast_y = cast(y, T_INT);
 		}
 		else{
-			p = gen("@", (struct sem_rec *)NULL, x, T_DOUBLE);
-			
 			// Print casting if necessary
 			cast_y = cast(y, T_DOUBLE);
 		}
@@ -851,31 +847,35 @@ struct sem_rec *set(char *op, struct sem_rec *x, struct sem_rec *y){
 		p2 = gen(op, p, cast_y, cast_y->s_mode);
 
 		// Do the assignment
-		return gen("=", x, p2, cast_y->s_mode);
-			
-	}
-
-	/* if for type consistency of x and y */
-	cast_y = y;
-	if((x->s_mode & T_DOUBLE) && !(y->s_mode & T_DOUBLE)){
-		/*cast y to a double*/
-		printf("t%d := cvf t%d\n", nexttemp(), y->s_place);
-		cast_y = node(currtemp(), T_DOUBLE, (struct sem_rec *) NULL,(struct sem_rec *) NULL);
-	}
-	else if((x->s_mode & T_INT) && !(y->s_mode & T_INT)){
-		/*convert y to integer*/
-		printf("t%d := cvi t%d\n", nexttemp(), y->s_place);
-		cast_y = node(currtemp(), T_INT, (struct sem_rec *) NULL, (struct sem_rec *) NULL);
-	}
-
-	/*output quad for assignment*/
-	if(x->s_mode & T_DOUBLE){
-		printf("t%d := t%d =f t%d\n", nexttemp(), x->s_place, cast_y->s_place);
+		printf("t%d := t%d =%c t%d\n", nexttemp(), x->s_place, (p->s_mode & T_INT ? 'i':'f'), cast_y->s_place);
 	}
 	else{
-		printf("t%d := t%d =i t%d\n", nexttemp(), x->s_place, cast_y->s_place);
-	}
+		/* type consistency of x and y */
 	
+		cast_y = y;
+
+		if((x->s_mode & T_DOUBLE) && !(y->s_mode & T_DOUBLE)){
+			//cast y to a double
+			//printf("t%d := cvf t%d\n", nexttemp(), y->s_place);
+			cast_y = cast(y, T_DOUBLE);
+			//node(currtemp(), T_DOUBLE, (struct sem_rec *) NULL,(struct sem_rec *) NULL);
+		}
+		else if((x->s_mode & T_INT) && !(y->s_mode & T_INT)){
+			//convert y to integer
+			//printf("t%d := cvi t%d\n", nexttemp(), y->s_place);
+			cast_y = cast(y, T_INT);
+			//node(currtemp(), T_INT, (struct sem_rec *) NULL, (struct sem_rec *) NULL);
+		}
+
+		/*output quad for assignment*/
+		if(x->s_mode & T_DOUBLE){
+			printf("t%d := t%d =f t%d\n", nexttemp(), x->s_place, cast_y->s_place);
+		}
+		else{
+			printf("t%d := t%d =i t%d\n", nexttemp(), x->s_place, cast_y->s_place);
+		}
+	}
+
 	/*create a new node to allow just created temporary to be referenced later */
 	return(	node(currtemp(),
 		     (x->s_mode&~(T_ARRAY)),
@@ -1000,24 +1000,6 @@ struct sem_rec *gen(char *op, struct sem_rec *x, struct sem_rec *y, int t){
 	}
 	printf("\n");
 	return (node(currtemp(), t, (struct sem_rec *) NULL, (struct sem_rec *) NULL));
-}
-
-
-int is_bitwise(char *op){
-	if(
-		(strncmp(op, "|", 1) == 0) ||
-		(strncmp(op, "^", 1) == 0) ||
-		(strncmp(op, "&", 1) == 0) ||
-		(strncmp(op, "<<", 2) == 0) ||
-		(strncmp(op, ">>", 2) == 0) ||
-		(strncmp(op, "~", 1) == 0)
-
-	){
-		printf("%s is bitwise!\n", op);
-		return 1;	
-	}
-	printf("%s is not bitwise!\n", op);
-	return 0;
 }
 
 
